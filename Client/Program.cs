@@ -12,9 +12,13 @@ namespace Client
     class Program
     {
         static UdpClientConnection conn;
+        static string remoteHost = "192.168.237.131";
+        //static string remoteHost = "172.26.187.156";
+        static string host = "192.168.237.1";
+
         static void Main(string[] args)
         {
-            conn = new UdpClientConnection("172.26.187.156", 1234, "172.26.187.156", 1230);
+            conn = new UdpClientConnection(host, 1234, remoteHost, 1230);
             conn.Connect();
             Console.WriteLine("Client");
 
@@ -25,13 +29,10 @@ namespace Client
         }
         static void sendMsg()
         {
-            //while (true)
+            while (true)
             {
-                //string msg = Console.ReadLine();
-                //msg = "";
-                //for (int i = 0; i < 20000; i++)
-                //    msg += "a";
-                //conn.SendBytes(Encoding.UTF8.GetBytes(msg), SendOption.FragmentedReliable);
+                string msg = Console.ReadLine();
+                conn.SendBytes(Encoding.UTF8.GetBytes(msg), SendOption.FragmentedReliable);
                 
                                 string msg1 = "aaaa";
                                 string msg2 = "bbb";
@@ -49,9 +50,9 @@ namespace Client
                // conn.SendBytes(Encoding.UTF8.GetBytes(msg1), SendOption.FragmentedReliable);
                // conn.SendBytes(Encoding.UTF8.GetBytes(msg2), SendOption.FragmentedReliable);
                // conn.SendBytes(Encoding.UTF8.GetBytes(msg3), SendOption.FragmentedReliable);
-                conn.SendBytes(Encoding.UTF8.GetBytes(msg4), SendOption.FragmentedReliable);
+               // conn.SendBytes(Encoding.UTF8.GetBytes(msg4), SendOption.FragmentedReliable);
               //  conn.SendBytes(Encoding.UTF8.GetBytes(msg5), SendOption.FragmentedReliable);
-                conn.SendBytes(Encoding.UTF8.GetBytes(msg6), SendOption.FragmentedReliable);
+               // conn.SendBytes(Encoding.UTF8.GetBytes(msg6), SendOption.FragmentedReliable);
             }
         }
         static void receiveMsg()
