@@ -14,7 +14,7 @@ namespace Client
         static UdpClientConnection conn;
         static void Main(string[] args)
         {
-            conn = new UdpClientConnection("172.26.187.156", 1234, "172.26.187.156", 1230);
+            conn = new UdpClientConnection("192.168.237.131", 1234, "192.168.237.131", 1230);
             conn.Connect();
             Console.WriteLine("Client");
 
