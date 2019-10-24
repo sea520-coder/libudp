@@ -1,0 +1,11 @@
+/root/libudp/Server/obj/Debug/netcoreapp2.2/Server.csprojAssemblyReference.cache
+/root/libudp/Server/obj/Debug/netcoreapp2.2/Server.csproj.CoreCompileInputs.cache
+/root/libudp/Server/obj/Debug/netcoreapp2.2/Server.AssemblyInfoInputs.cache
+/root/libudp/Server/obj/Debug/netcoreapp2.2/Server.AssemblyInfo.cs
+/root/libudp/Server/bin/Debug/netcoreapp2.2/Server.deps.json
+/root/libudp/Server/bin/Debug/netcoreapp2.2/Server.runtimeconfig.json
+/root/libudp/Server/bin/Debug/netcoreapp2.2/Server.runtimeconfig.dev.json
+/root/libudp/Server/bin/Debug/netcoreapp2.2/Server.dll
+/root/libudp/Server/bin/Debug/netcoreapp2.2/Server.pdb
+/root/libudp/Server/obj/Debug/netcoreapp2.2/Server.dll
+/root/libudp/Server/obj/Debug/netcoreapp2.2/Server.pdb
