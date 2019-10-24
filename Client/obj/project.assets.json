@@ -686,12 +686,18 @@
     ]
   },
   "packageFolders": {
+<<<<<<< HEAD
     "C:\\Users\\1\\.nuget\\packages\\": {},
     "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder": {}
+=======
+    "/root/.nuget/packages/": {},
+    "/usr/share/dotnet/sdk/NuGetFallbackFolder": {}
+>>>>>>> 49d52aafe3b0d96301cb5fff27df16a90e67b867
   },
   "project": {
     "version": "1.0.0",
     "restore": {
+<<<<<<< HEAD
       "projectUniqueName": "D:\\libudp\\Client\\Client.csproj",
       "projectName": "Client",
       "projectPath": "D:\\libudp\\Client\\Client.csproj",
@@ -704,12 +710,28 @@
       "configFilePaths": [
         "C:\\Users\\1\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+=======
+      "projectUniqueName": "/root/libudp/Client/Client.csproj",
+      "projectName": "Client",
+      "projectPath": "/root/libudp/Client/Client.csproj",
+      "packagesPath": "/root/.nuget/packages/",
+      "outputPath": "/root/libudp/Client/obj/",
+      "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "/usr/share/dotnet/sdk/NuGetFallbackFolder"
+      ],
+      "configFilePaths": [
+        "/root/.nuget/NuGet/NuGet.Config"
+>>>>>>> 49d52aafe3b0d96301cb5fff27df16a90e67b867
       ],
       "originalTargetFrameworks": [
         "netcoreapp2.2"
       ],
       "sources": {
+<<<<<<< HEAD
         "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+=======
+>>>>>>> 49d52aafe3b0d96301cb5fff27df16a90e67b867
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {

@@ -19,6 +19,7 @@ namespace Client
         static void Main(string[] args)
         {
             conn = new UdpClientConnection(host, 1234, remoteHost, 1230);
+
             conn.Connect();
             Console.WriteLine("Client");
 
