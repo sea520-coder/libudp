@@ -32,14 +32,13 @@ namespace LowLevelTransport.Udp
             this.remoteEndPoint = endPoint;
             ARQInit(convID_);
         }
-        protected override void RawSend(byte[] data, int length)
+        public override void UnReliableSend(byte[] data, int length)
         {
             Listener.SendBytes(data, length, remoteEndPoint);
         }
         protected override void Dispose()
         {
             Listener.RemoveConnectionTo(remoteEndPoint);
-            StopTimer();
         }
     }
 }

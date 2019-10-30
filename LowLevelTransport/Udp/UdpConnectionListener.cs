@@ -23,14 +23,14 @@ namespace LowLevelTransport.Udp
         private readonly Queue<Connection> newConnQueue = new Queue<Connection>();
 #endif
         private uint convId = 0;
-        private const int CONV_ID_MAX = 100000;
         private uint GenerateConvID()
         {
-            return convId >= CONV_ID_MAX ? 1 : ++convId;
+            return convId >= (uint)ConvIDOption.Max ? 1 : ++convId;
         }
         internal int SendBufferSize() => server.SendBufferSize;
         internal int ReceiveBufferSize() => server.ReceiveBufferSize;
-        public UdpConnectionListener(string host, int port, int sendBufferSize = 20480, int receiveBufferSize = 20480)
+        public UdpConnectionListener(string host, int port, int sendBufferSize = (int)SocketBufferOption.SendSize, 
+            int receiveBufferSize = (int)SocketBufferOption.ReceiveSize)
         {
             server = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             server.SendBufferSize = sendBufferSize;
@@ -114,25 +114,37 @@ namespace LowLevelTransport.Udp
             int ret = connection.ARQReceive(dataBuffer, length);
             if(ret < 0)
             {
-                if(dataBuffer[0] == (byte)UdpSendOption.HandShake) //建立连接
+                if(length == 1)
                 {
-                    if(beforeExistConnection)
+                    if(dataBuffer[0] == (byte)UdpSendOption.CreateConnection) //建立连接
+                    {
+                        if(beforeExistConnection)
+                        {
+                            connection.Close();
+                            CreateConnection(point, ref connection, ref convID_);
+                        }
+                        
+                        byte[] conv = BitConverter.GetBytes(convID_);
+                        byte[] data = new byte[5] {(byte)UdpSendOption.CreateConnectionResponse, 0, 0, 0, 0};
+                        Buffer.BlockCopy(conv, 0, data, 1, conv.Length);
+                        connection.UnReliableSend(data, data.Length);
+                        Log.Info("create an connection convID:{0}", convID_);
+                    }
+                    else if(dataBuffer[0] == (byte)UdpSendOption.Disconnect) //客户端主动释放连接
                     {
                         connection.Close();
-                        CreateConnection(point, ref connection, ref convID_);
+                        connection = null;
+                        Log.Info("close an connection");
                     }
-                    
-                    byte[] conv = BitConverter.GetBytes(convID_);
-                    byte[] data = new byte[5] {(byte)UdpSendOption.HandShakeDone, 0, 0, 0, 0};
-                    Buffer.BlockCopy(conv, 0, data, 1, conv.Length);
-                    connection.SendBytes(data);
-                    Log.Info("create an connection convID:{0}", convID_);
-                }
-                else if(dataBuffer[0] == (byte)UdpSendOption.Disconnect) //客户端主动释放连接
-                {
-                    connection.Close();
-                    connection = null;
-                    Log.Info("close an connection");
+                    else if(dataBuffer[0] == (byte)UdpSendOption.Heartbeat) //keepalive
+                    {
+                        byte[] data = new byte[1] {(byte)UdpSendOption.HeartbeatResponse};
+                        connection.UnReliableSend(data, data.Length);
+                    }
+                    else
+                    {
+                        Log.Error("receiveCallback option{0}", dataBuffer[0]);
+                    }
                 }
                 else //正数数据收
                 {

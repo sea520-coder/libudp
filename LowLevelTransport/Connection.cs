@@ -62,27 +62,32 @@ namespace LowLevelTransport
         }
         internal void NoReliableReceive(byte[] dataBuffer, int length)
         {
-            byte[] dst = new byte[length];
-            Buffer.BlockCopy(dataBuffer, 0, dst, 0, length);
-            recvQueue.Enqueue(dst);
+            byte[] dst = new byte[length-1];
+            Buffer.BlockCopy(dataBuffer, 1, dst, 0, length-1);
+            lock (recvQueue)
+            {
+                recvQueue.Enqueue(dst);
+            }
         }
         public void Close()
         {
-            if(isClosed)
+            lock (recvQueue)
             {
-                return;
-            }
-            isClosed = true;
+                if(isClosed)
+                {
+                    return;
+                }
+                isClosed = true;
 
-            Dispose();
-            StopTimer();
+                Dispose();
+                StopTimer();
+            } 
         }
-
-        protected virtual void RawSend(byte[] data, int length)
+        protected void InvokeDisconnected(Exception e = null)
         {
-            throw new NotImplementedException();
+            Log.Error("Disconnect IP:{0} Exception:{1}", remoteEndPoint.ToString(), e?.Message);
+            Close();
         }
-        
         protected virtual void Dispose()
         {
             throw new NotImplementedException();
@@ -100,20 +105,14 @@ namespace LowLevelTransport
             tickTimer = new Timer((object o) => Update(), null, Interval(), Timeout.Infinite);
         }
         internal void StopTimer() => tickTimer.Change(Timeout.Infinite, Timeout.Infinite);
-        protected void SendDisconnect()
-        {
-            var data = new byte[] { (byte)UdpSendOption.Disconnect };
-            SendBytes(data);
-        }
-        internal void ARQInit(uint convID_) //是否分开
+        internal void ARQInit(uint convID_) //因为客户端和服务器窗口大小不一样，是否写成2个函数
         {
             lock (arqLock)
             {
-                arq = new AutomaticRepeatRequest(convID_, RawSend);
-                arq.WindowSize(128, 128); //根据预计带宽来填[32, 256] 每秒钟要发多少包
-                arq.NoDelay(1, 40, 0, 1);
-                arq.Interval(10); //update 10ms
-                arq.SetMTU(470); 
+                arq = new AutomaticRepeatRequest(convID_, UnReliableSend);
+                arq.WindowSize((int)ARQOption.SendWindow, (int)ARQOption.RecieveWindow); 
+                arq.NoDelay((int)ARQOption.NoDelay, (int)ARQOption.Interval, (int)ARQOption.Resend, (int)ARQOption.NC);
+                arq.SetMTU((int)ARQOption.MTU); 
             }
             StartTick();
         }
@@ -131,6 +130,10 @@ namespace LowLevelTransport
             {
                 return arq.Interval();
             }
+        }
+        public virtual void UnReliableSend(byte[] data, int length)
+        {
+            throw new NotImplementedException();
         }
         protected int ARQSend(byte[] buff)
         {
