@@ -177,7 +177,7 @@ namespace LowLevelTransport.Udp
         uint cwnd; 
         uint probe;
         uint current; 
-        public uint interval; 
+        uint interval; 
         uint ts_flush; 
         uint xmit;
         uint nodelay; 
@@ -242,14 +242,14 @@ namespace LowLevelTransport.Udp
             }
             return length;
         }
-        public int Receive(byte[] buffer)
+        public int Receive(byte[] buffer, int index, int size)
         {
             if (0 == receiveQueue.Count)
                 return -1;
             var peekSize = PeekSize();
             if (peekSize < 0)
                 return -2;
-            if (peekSize > buffer.Length)
+            if (peekSize > size)
                 return -3;
 
             var fastRecover = false;
@@ -257,7 +257,7 @@ namespace LowLevelTransport.Udp
                 fastRecover = true;
 
             var count = 0;
-            var length = 0;
+            var length = index;
             foreach(var seg in receiveQueue)
             {
                 uint frg = seg.frg;
@@ -299,7 +299,7 @@ namespace LowLevelTransport.Udp
                 probe |= ASK_TELL;
             }
 
-            return length;
+            return length - index;
         }
 
         public int Send(byte[] buffer)
@@ -623,7 +623,7 @@ namespace LowLevelTransport.Udp
             };
 
             // flush acknowledges
-            for(var i = 0; i < ackList.Count; i++)
+            for(var i = 0; i < ackList.Count; i++) //模拟丢大量确认包?
             {
                 makeSpace(OVERHEAD);
                 var ack = ackList[i];
@@ -812,7 +812,7 @@ namespace LowLevelTransport.Udp
                 incr = mss;
             }
         }
-        public void Update()
+        internal void Update()
         {
             var current = currentMS();
 
@@ -836,7 +836,7 @@ namespace LowLevelTransport.Udp
                 Flush();
             }
         }
-        public uint Check()
+        internal uint Check()
         {
             var current = currentMS();
 
@@ -872,7 +872,7 @@ namespace LowLevelTransport.Udp
 
             return (uint)minimal;
         }
-        public int SetMTU(int mtu_)
+        internal int SetMTU(int mtu_)
         {
             if (mtu_ < 50 || mtu_ < (int)OVERHEAD)
                 return -1;
@@ -886,7 +886,7 @@ namespace LowLevelTransport.Udp
             buffer = buffer_;
             return 0;
         }
-        int Interval(int interval_)
+        internal int Interval(int interval_)
         {
             if (interval_ > 5000)
                 interval_ = 5000;
@@ -895,7 +895,11 @@ namespace LowLevelTransport.Udp
             interval = (uint)interval_;
             return 0;
         }
-        public int NoDelay(int nodelay_, int interval_, int resend_, int nc_)
+        internal int Interval()
+        {
+            return (int)interval;
+        }
+        internal int NoDelay(int nodelay_, int interval_, int resend_, int nc_)
         {
             if(nodelay >= 0)
             {
@@ -907,11 +911,7 @@ namespace LowLevelTransport.Udp
             }
             if(interval_ >= 0)
             {
-                if (interval_ > 5000)
-                    interval_ = 5000;
-                else if (interval < 10)
-                    interval_ = 10;
-                interval = (uint)interval_;
+                Interval(interval_);
             }
             if (resend_ >= 0)
             {
@@ -923,7 +923,7 @@ namespace LowLevelTransport.Udp
             }
             return 0;
         }
-        public int WindowSize(int sendWindow_, int receiveWindow_)
+        internal int WindowSize(int sendWindow_, int receiveWindow_)
         {
             if (sendWindow_ > 0)
                 sendWindow = (uint)sendWindow_;

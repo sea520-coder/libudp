@@ -1,28 +1,30 @@
 {
   "format": 1,
   "restore": {
-    "/root/libudp/Server/Server.csproj": {}
+    "D:\\libudp\\Server\\Server.csproj": {}
   },
   "projects": {
-    "/root/libudp/Server/Server.csproj": {
+    "D:\\libudp\\Server\\Server.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/root/libudp/Server/Server.csproj",
+        "projectUniqueName": "D:\\libudp\\Server\\Server.csproj",
         "projectName": "Server",
-        "projectPath": "/root/libudp/Server/Server.csproj",
-        "packagesPath": "/root/.nuget/packages/",
-        "outputPath": "/root/libudp/Server/obj/",
+        "projectPath": "D:\\libudp\\Server\\Server.csproj",
+        "packagesPath": "C:\\Users\\1\\.nuget\\packages\\",
+        "outputPath": "D:\\libudp\\Server\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
-          "/usr/share/dotnet/sdk/NuGetFallbackFolder"
+          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
         ],
         "configFilePaths": [
-          "/root/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\1\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "netcoreapp2.2"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {

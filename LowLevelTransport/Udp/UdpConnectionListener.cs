@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using LowLevelTransport.Utils;
 #if DOTNET_CORE
 using System.Threading.Tasks.Dataflow;
 #endif
@@ -13,7 +13,7 @@ namespace LowLevelTransport.Udp
 {
     public class UdpConnectionListener
     {
-        public Socket server;
+        private Socket server;
         private readonly EndPoint endPoint;
         private readonly byte[] dataBuffer = new byte[ushort.MaxValue];
         private readonly Dictionary<EndPoint, UdpServerConnection> endPoint2Connection = new Dictionary<EndPoint, UdpServerConnection>();
@@ -22,15 +22,23 @@ namespace LowLevelTransport.Udp
 #else
         private readonly Queue<Connection> newConnQueue = new Queue<Connection>();
 #endif
-        public int SendBufferSize() => server.SendBufferSize;
-        public int ReceiveBufferSize() => server.ReceiveBufferSize;
-
+        private uint convId = 0;
+        private const int CONV_ID_MAX = 100000;
+        private uint GenerateConvID()
+        {
+            return convId >= CONV_ID_MAX ? 1 : ++convId;
+        }
+        internal int SendBufferSize() => server.SendBufferSize;
+        internal int ReceiveBufferSize() => server.ReceiveBufferSize;
         public UdpConnectionListener(string host, int port, int sendBufferSize = 20480, int receiveBufferSize = 20480)
         {
             server = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             server.SendBufferSize = sendBufferSize;
             server.ReceiveBufferSize = receiveBufferSize;
             endPoint = new IPEndPoint(IPAddress.Parse(host), port);
+            //解决对端关闭了，但server端还调用SendBytes()给对端发送数据
+            uint SIO_UDP_CONNRESET = 2550136844; //errorcode = 10054
+            server.IOControl((int)SIO_UDP_CONNRESET, new byte[1], null);
         }
         public void Start()
         {
@@ -50,19 +58,19 @@ namespace LowLevelTransport.Udp
             return null;
         }
 #endif
-        public void RemoveConnectionTo(EndPoint endPoint)
-        {
-            endPoint2Connection.Remove(endPoint);
-        }
         public void Close()
         {
             server.Close();
         }
-        public void SendBytes(byte[] buff, EndPoint remoteEndPoint)
+        internal void RemoveConnectionTo(EndPoint endPoint)
+        {
+            endPoint2Connection.Remove(endPoint);
+        }
+        internal void SendBytes(byte[] buff, EndPoint remoteEndPoint)
         {
             server.BeginSendTo(buff, 0, buff.Length, 0, remoteEndPoint, sendCallback, server);
         }
-        public void SendBytes(byte[] buff, int length, EndPoint remoteEndPoint)
+        internal void SendBytes(byte[] buff, int length, EndPoint remoteEndPoint)
         {
              server.BeginSendTo(buff, 0, length, 0, remoteEndPoint, sendCallback, server);
         }
@@ -75,48 +83,64 @@ namespace LowLevelTransport.Udp
             EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
             server.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref remoteEP, receiveCallback, server);
         }
+        private void CreateConnection(EndPoint point, ref UdpServerConnection connection, ref uint convID_)
+        {
+            convID_ = GenerateConvID();
+            connection = new UdpServerConnection(this, point, convID_);
+            endPoint2Connection.Add(point, connection);
+#if DOTNET_CORE
+            newConnQueue.Post(connection);
+#else
+            newConnQueue.Enqueue(connection);
+#endif
+        }
         private void receiveCallback(IAsyncResult result)
         {
             EndPoint point = new IPEndPoint(IPAddress.Any, 0);
             int length = server.EndReceiveFrom(result, ref point);
 
             UdpServerConnection connection;
-            if (endPoint2Connection.TryGetValue(point, out connection))
+            uint convID_ = 0;
+            bool beforeExistConnection = false;
+            if (endPoint2Connection.TryGetValue(point, out connection)) //已建立连接
             {
+                beforeExistConnection = true;
             }
-            else
+            else //新连接
             {
-                connection = new UdpServerConnection(this, point);
-                endPoint2Connection.Add(point, connection);
-#if DOTNET_CORE
-                newConnQueue.Post(connection);
-#else
-                newConnQueue.Enqueue(connection);
-#endif
+                CreateConnection(point, ref connection, ref convID_);
             }
 
-            int ret = connection.aRQ.Input(dataBuffer, length);
-            if(ret >= 0)
+            int ret = connection.ARQReceive(dataBuffer, length);
+            if(ret < 0)
             {
-                length = connection.aRQ.Receive(dataBuffer);
-                if(length > 0) //数据包
+                if(dataBuffer[0] == (byte)UdpSendOption.HandShake) //建立连接
                 {
-                    byte[] dst = new byte[length];
-                    Buffer.BlockCopy(dataBuffer, 0, dst, 0, length);
-                    connection.recvQueue.Enqueue(dst);
+                    if(beforeExistConnection)
+                    {
+                        connection.Close();
+                        CreateConnection(point, ref connection, ref convID_);
+                    }
+                    
+                    byte[] conv = BitConverter.GetBytes(convID_);
+                    byte[] data = new byte[5] {(byte)UdpSendOption.HandShakeDone, 0, 0, 0, 0};
+                    Buffer.BlockCopy(conv, 0, data, 1, conv.Length);
+                    connection.SendBytes(data);
+                    Log.Info("create an connection convID:{0}", convID_);
                 }
-                else //确认包 or 错误包 or 部分包
-                {}
-            }
-            else
-            {
-                byte[] dst = new byte[length];
-                Buffer.BlockCopy(dataBuffer, 0, dst, 0, length);
-                connection.recvQueue.Enqueue(dst);
+                else if(dataBuffer[0] == (byte)UdpSendOption.Disconnect) //客户端主动释放连接
+                {
+                    connection.Close();
+                    connection = null;
+                    Log.Info("close an connection");
+                }
+                else //正数数据收
+                {
+                    connection.NoReliableReceive(dataBuffer, length);
+                }
             }
             
             server.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point, receiveCallback, server);
         }
     }
 }
-

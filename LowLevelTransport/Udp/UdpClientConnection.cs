@@ -5,22 +5,18 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using LowLevelTransport.Utils;
+using System.Threading;
 
 namespace LowLevelTransport.Udp
 {
     public class UdpClientConnection : Connection
     {
         private readonly Socket client;
-
-        private readonly byte[] dataBuffer = new byte[ushort.MaxValue];
-
-        private readonly Queue<byte[]> recvQueue = new Queue<byte[]>();
-
         private readonly EndPoint endPoint;
-        private readonly EndPoint remoteEndPoint;
-
-        public override int SendBufferSize() => client.SendBufferSize;
-        public override int ReceiveBufferSize() => client.ReceiveBufferSize;
+        protected byte[] dataBuffer = new byte[ushort.MaxValue];
+        protected TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>(null, TaskCreationOptions.RunContinuationsAsynchronously);
+        protected override int SendBufferSize() => client.SendBufferSize;
+        protected override int ReceiveBufferSize() => client.ReceiveBufferSize;
 
         public UdpClientConnection(string host, int port, string remoteHost, int remotePort, int sendBufferSize = 20480, int receiveBufferSize = 20480)
         {
@@ -40,18 +36,13 @@ namespace LowLevelTransport.Udp
         }
         public Task<bool> ConnectAsync(int timeout = 5000)
         {
-            return Task.Run(() =>
-            {
-                Connect();
-                return true;
-            });
-        }
-        public void Connect()
-        {
             client.Bind(endPoint);
-            receiveMsg();
-            
-            ARQInit();
+            ReceiveMsg();
+
+            byte[] data = { (byte)UdpSendOption.HandShake };
+            SendBytes(data);
+            var timer = new Timer((object obj) => { tcs.TrySetResult(false); }, null, timeout, Timeout.Infinite);
+            return tcs.Task;
         }
         public override void SendBytes(byte[] buff, SendOption sendOption = SendOption.None)
         {
@@ -62,52 +53,86 @@ namespace LowLevelTransport.Udp
            
             if(sendOption == SendOption.FragmentedReliable)
             {
-                aRQ.Send(buff);
+                ARQSend(buff);
             }
             else
             {
                 RawSend(buff, buff.Length);
             }
         }
-        public override void RawSend(byte[] data, int length)
+       
+        public void ReconnectTest()
         {
-            client.BeginSendTo(data, 0, length, 0, remoteEndPoint, sendCallback, client);
         }
-        public override byte[] Receive()
+        protected override void RawSend(byte[] data, int length)
         {
-            if (recvQueue.Count != 0)
-                return recvQueue.Dequeue();
-            return null;
+            client.BeginSendTo(data, 0, length, 0, remoteEndPoint, SendCallback, client);
         }
-        public override void Dispose()
+        protected override void Dispose()
         {
             bool connected;
-            connected = State == ConnectionState.Connected;
+            lock (stateLock)
+            {
+                connected = State == ConnectionState.Connected;
+            }
 
-            if(connected)
+            if(connected) //正常断开
             {
                 SendDisconnect();
             }
 
-            State = ConnectionState.NotConnected;
+            lock (stateLock)
+            {
+                State = ConnectionState.NotConnected;
+            }
             
-            StopTimer();
             client.Close();
         }
-        public void ReconnectTest()
-        {
-
-        }
-        private void sendCallback(IAsyncResult result)
+        private void SendCallback(IAsyncResult result)
         {
             client.EndSendTo(result);
         }
-        private void receiveMsg()
+        private void ReceiveMsg()
         {
             EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
-            client.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref remoteEP, receiveCallback, client);
+            client.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref remoteEP, FirstReceiveCallback, client);
         }
-        private void receiveCallback(IAsyncResult result)
+        private void FirstReceiveCallback(IAsyncResult result)
+        {
+            EndPoint point = new IPEndPoint(IPAddress.Any, 0);
+            int length;
+            try
+            {
+                length = client.EndReceiveFrom(result, ref point);
+            }
+            catch (Exception e)
+            {
+                Log.Error($"FirstReceiveCallback: {e.Message}");
+                return;
+            }
+            if (length <= 0)
+            {
+                Log.Error($"FirstReceiveCallback: length");
+                return;
+            }
+            if(dataBuffer[0] != (byte)UdpSendOption.HandShakeDone)
+            {
+                Log.Error($"FirstReceiveCallback: UdpSendOption.HandShakeDone");
+                return;
+            }
+            Log.Info("FirstReceiveCallback {0}", length);
+            uint convID_ = BitConverter.ToUInt32(dataBuffer, 1);
+            ARQInit(convID_);
+            tcs.TrySetResult(true);
+
+            lock (stateLock)
+            {
+                State = ConnectionState.Connected;
+            }
+
+            client.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point, ReceiveCallback, client);
+        }
+        private void ReceiveCallback(IAsyncResult result)
         {
             EndPoint point = new IPEndPoint(IPAddress.Any, 0);
             int length;
@@ -127,27 +152,13 @@ namespace LowLevelTransport.Udp
             }
             Log.Info("receiveCallback {0}", length);
 
-            int ret = aRQ.Input(dataBuffer, length);
-            if(ret >= 0) //是可靠包
+            int ret = ARQReceive(dataBuffer, length);
+            if(ret < 0)
             {
-                length = aRQ.Receive(dataBuffer);
-                if(length > 0)
-                {
-                    byte[] dst = new byte[length];
-                    Buffer.BlockCopy(dataBuffer, 0, dst, 0, length);
-                    recvQueue.Enqueue(dst);
-                }
-                else //是确认包 or 错误包
-                {}
-            }
-            else
-            {
-                byte[] dst = new byte[length];
-                Buffer.BlockCopy(dataBuffer, 0, dst, 0, length);
-                recvQueue.Enqueue(dst);
+                NoReliableReceive(dataBuffer, length);
             }
             
-            client.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point, receiveCallback, client);
+            client.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point, ReceiveCallback, client);
         }
         private UInt32 currentMS()
         {

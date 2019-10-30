@@ -23,9 +23,9 @@ namespace LowLevelTransport
 
     public enum ConnectionState
     {
-        NotConnected,
-        Connecting,
-        Connected,
-        Disconnecting,
+        NotConnected = 0,
+        Connecting = 1,
+        Connected = 2,
+        Disconnecting = 3,
     }
 }

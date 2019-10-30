@@ -14,7 +14,8 @@ namespace Server
         static Connection newconn;
         static UdpConnectionListener listener;
         static CancellationTokenSource source = new CancellationTokenSource();
-        static string host = "192.168.237.131";
+        //static string host = "192.168.237.131";
+        static string host = "172.26.187.156";
 
         static async void AcceptLoop()
         {
@@ -24,13 +25,13 @@ namespace Server
                 newconn = await listener.AcceptAsync(token);
                 _ = Task.Run( () =>
                {
-                       while(true)
-                       {
-                            byte[] data = newconn.Receive();
-                            if(data != null)
-                                Console.WriteLine(data.Length);
-                                //Console.WriteLine(Encoding.UTF8.GetString(data));
-                   }
+                    while(true)
+                    {
+                        byte[] data = newconn.Receive();
+                        if(data != null)
+                            Console.WriteLine(data.Length);
+                            //Console.WriteLine(Encoding.UTF8.GetString(data));
+                    }
                });
             }
         }

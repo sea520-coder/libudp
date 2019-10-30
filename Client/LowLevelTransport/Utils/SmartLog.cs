@@ -14,7 +14,7 @@ namespace LowLevelTransport.Utils
             Error,
         }
 
-        public static bool Enable = false;
+        public static bool Enable = true;
 
         public static bool ForceLogBinary = false;
 
