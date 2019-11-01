@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
+using LowLevelTransport.Utils;
 
 namespace LowLevelTransport.Udp
 {
@@ -124,6 +124,10 @@ namespace LowLevelTransport.Udp
                 {
                     var seg = msSegmentPool.Pop();
                     seg.data = new byte[size];
+                    if(seg.data == null)
+                    {
+                        Log.Error("segmentPool data is null");
+                    }
                     return seg;
                 }
                 return new Segment(size);
@@ -140,6 +144,10 @@ namespace LowLevelTransport.Udp
             private Segment(int size)
             {
                 data = new byte[size];
+                if(data == null)
+                {
+                    Log.Error("Segment data is null");
+                }
             }
             internal void reset()
             {
@@ -155,6 +163,7 @@ namespace LowLevelTransport.Udp
                 resendts = 0;
                 fastack = 0;
                 acked = 0;
+                len = 0;
                 data = null;
             }
         }
@@ -196,7 +205,7 @@ namespace LowLevelTransport.Udp
 
         List<Segment> sendQueue = new List<Segment>(16);
         List<Segment> receiveQueue = new List<Segment>(16);
-        List<Segment> sendBuffer = new List<Segment>(16);
+        List<Segment> sendBuffer = new List<Segment>(16); //存着远端已确认的数据acked=1等下次删除，和未确认的数据， 要发送的数据
         List<Segment> receiveBuffer = new List<Segment>(16);
         List<ackItem> ackList = new List<ackItem>(16);
 
@@ -307,22 +316,20 @@ namespace LowLevelTransport.Udp
             if (buffer.Length <= 0)
                 return -1;
 
-            var readIndex = 0;
-
-            if(buffer.Length - readIndex <= 0) return 0;
-
             var count = 0;
-            if(buffer.Length - readIndex <= mss)
+            if(buffer.Length <= mss)
             {
                 count = 1;
             }
             else
             {
-                count = (int)(buffer.Length - readIndex + (int)mss - 1) / (int)mss;
+                count = (int)(buffer.Length + (int)mss - 1) / (int)mss;
             }
             if (count > 255) return -2;
             if (count == 0)
                 count = 1;
+
+            var readIndex = 0;
             for(var i = 0; i < count; i++)
             {
                 var size = Math.Min(buffer.Length - readIndex, (int)mss);
@@ -333,7 +340,6 @@ namespace LowLevelTransport.Udp
                 seg.frg = (byte)(count - i - 1);
                 sendQueue.Add(seg);
             }
-
             return readIndex;
         }
         void UpdateAck(int rtt)
@@ -371,8 +377,8 @@ namespace LowLevelTransport.Udp
             {
                 if(sn == seg.sn)
                 {
-                    seg.acked = 1;
                     Segment.Put(seg);
+                    seg.acked = 1;
                     break;
                 }
                 if (_itimediff(sn, seg.sn) < 0)
@@ -391,7 +397,7 @@ namespace LowLevelTransport.Udp
             }
             if(count > 0)
             {
-                sendBuffer.RemoveRange(0, count);
+                sendBuffer.RemoveRange(0, count); //只有此处删除
             }
         }
         void ParseFastAck(uint sn, uint ts)
@@ -595,7 +601,7 @@ namespace LowLevelTransport.Udp
                 return (ushort)( receiveWindow - receiveQueue.Count );
             return 0;
         }
-        public void Flush()
+        void Flush()
         {
             var seg = new Segment();
             seg.conv = conv;
