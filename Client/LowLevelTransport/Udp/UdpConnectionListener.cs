@@ -36,9 +36,11 @@ namespace LowLevelTransport.Udp
             server.SendBufferSize = sendBufferSize;
             server.ReceiveBufferSize = receiveBufferSize;
             endPoint = new IPEndPoint(IPAddress.Parse(host), port);
+#if WIN 
             //解决对端关闭了，但server端还调用SendBytes()给对端发送数据
             uint SIO_UDP_CONNRESET = 2550136844; //errorcode = 10054
             server.IOControl((int)SIO_UDP_CONNRESET, new byte[1], null);
+#endif
         }
         public void Start()
         {
@@ -118,9 +120,10 @@ namespace LowLevelTransport.Udp
                 {
                     if(dataBuffer[0] == (byte)UdpSendOption.CreateConnection) //建立连接
                     {
-                        if(beforeExistConnection)
+                        if(beforeExistConnection) //之前的连接没有被释放掉
                         {
                             connection.Close();
+                            connection = null;
                             CreateConnection(point, ref connection, ref convID_);
                         }
                         
