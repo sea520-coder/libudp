@@ -240,7 +240,10 @@ namespace LowLevelTransport.Udp
             if (seg.frg == 0)
                 return (int)seg.len;
             if (receiveQueue.Count < seg.frg + 1)
-                return -1;
+            {
+                Log.Info("PeekSize {0} {1}", receiveQueue.Count, seg.frg);
+                return -2;
+            }
 
             int length = 0;
             foreach(var item in receiveQueue)
@@ -539,6 +542,7 @@ namespace LowLevelTransport.Udp
                             seg.una = tmp_una;
                             seg.len = tmp_length;
                             Buffer.BlockCopy(data, offset, seg.data, 0, (int)tmp_length);
+                            Log.Info("sn={0}:len={1}", seg.sn, seg.len);
                             ParseData(seg);
                         }
                     }

@@ -8,11 +8,15 @@ namespace LowLevelTransport
 
     public enum UdpSendOption : byte
     {
+        //No Reliable data
         CreateConnection = 0,
         CreateConnectionResponse = 1,
         Heartbeat = 2,
         HeartbeatResponse = 3,
         Disconnect = 4,
+        UnReliableData = 5,
+        // Reliable data
+        ReliableData = 6,
     }
 
     public enum ConnectionState
@@ -29,11 +33,12 @@ namespace LowLevelTransport
         KeepAliveInterval = 60000, // milliseconds
     }
 
+
     public enum ARQOption
     {
-        SendWindow = 128, // unit package //根据预计带宽来填值[32, 256] 每秒钟要发多少包
-        RecieveWindow = 128, // unit package
-        MTU = 470, //
+        SendWindow = 256, // unit package //根据预计带宽来填值[32, 256] 每秒钟要发多少包
+        RecieveWindow = 256, // unit package
+        MTU = 1400, //
         Interval = 40, //Update's interval
         Resend = 0, //0 close; 2 2次ACK跨越将会直接重传
         NC = 1, // 0 open; 1 close 是否关闭流控

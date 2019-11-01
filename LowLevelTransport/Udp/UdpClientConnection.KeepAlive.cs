@@ -38,7 +38,7 @@ namespace LowLevelTransport.Udp
             Interlocked.Add(ref reconnectTimes, 1);
             
             byte[] data = new byte[1] { (byte)UdpSendOption.Heartbeat };
-            UnReliableSend(data, data.Length);
+            SendBytes(data);
         }
         internal void HandleHeartbeat()
         {

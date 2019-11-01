@@ -33,17 +33,10 @@ namespace LowLevelTransport
             set => state = value;
         }
         protected object stateLock = new object();
-
-        private Action TryReconnectCallback;
-        private Action<bool> ReconnectFinishCallback;
         
         protected virtual int SendBufferSize() { throw new NotImplementedException(); }
         protected virtual int ReceiveBufferSize() { throw new NotImplementedException();  }
 
-        public virtual void SendBytes(byte[] buff, SendOption sendOption = SendOption.None)
-        {
-            throw new NotImplementedException();
-        }
         public byte[] Receive()
         {
             lock (recvQueue)
@@ -108,7 +101,7 @@ namespace LowLevelTransport
         {
             lock (arqLock)
             {
-                arq = new AutomaticRepeatRequest(convID_, UnReliableSend);
+                arq = new AutomaticRepeatRequest(convID_, EncapReliableSend);
                 arq.WindowSize((int)ARQOption.SendWindow, (int)ARQOption.RecieveWindow); 
                 arq.NoDelay((int)ARQOption.NoDelay, (int)ARQOption.Interval, (int)ARQOption.Resend, (int)ARQOption.NC);
                 arq.SetMTU((int)ARQOption.MTU); 
@@ -130,7 +123,35 @@ namespace LowLevelTransport
                 return arq.Interval();
             }
         }
-        public virtual void UnReliableSend(byte[] data, int length)
+        public void SendBytes(byte[] buff, SendOption sendOption = SendOption.None)
+        {
+            if(buff.Length > SendBufferSize() && (sendOption == SendOption.None))
+            {
+                throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
+            }
+           
+            if(sendOption == SendOption.FragmentedReliable)
+            {
+                ARQSend(buff);
+            }
+            else
+            {
+                byte[] data = new byte[buff.Length + 1];
+                data[0] = (byte)UdpSendOption.UnReliableData;
+                Buffer.BlockCopy(buff, 0, data, 1, buff.Length);
+                UnReliableSend(data, data.Length);
+                data = null;
+            }
+        }
+        void EncapReliableSend(byte[] buff, int length)
+        {
+            byte[] data = new byte[buff.Length + 1];
+            data[0] = (byte)UdpSendOption.ReliableData;
+            Buffer.BlockCopy(buff, 0, data, 1, buff.Length);
+            UnReliableSend(data, data.Length);
+            data = null;
+        }
+        protected virtual void UnReliableSend(byte[] data, int length)
         {
             throw new NotImplementedException();
         }
@@ -166,7 +187,9 @@ namespace LowLevelTransport
                 {
                     var size = arq.PeekSize();
                     if(size <= 0)
+                    {
                         break;
+                    }
 
                     var n = arq.Receive(dataBuffer, index, size);
                     if(n > 0) //数据包

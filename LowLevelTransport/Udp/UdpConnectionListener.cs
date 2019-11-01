@@ -70,15 +70,11 @@ namespace LowLevelTransport.Udp
         }
         internal void SendBytes(byte[] buff, EndPoint remoteEndPoint)
         {
-            server.BeginSendTo(buff, 0, buff.Length, 0, remoteEndPoint, sendCallback, server);
+            server.SendTo(buff, 0, buff.Length, 0, remoteEndPoint);
         }
         internal void SendBytes(byte[] buff, int length, EndPoint remoteEndPoint)
         {
-             server.BeginSendTo(buff, 0, length, 0, remoteEndPoint, sendCallback, server);
-        }
-        private void sendCallback(IAsyncResult result)
-        {
-            server.EndSendTo(result);
+             server.SendTo(buff, 0, length, 0, remoteEndPoint);
         }
         private void receiveMsg()
         {
@@ -101,6 +97,12 @@ namespace LowLevelTransport.Udp
             EndPoint point = new IPEndPoint(IPAddress.Any, 0);
             int length = server.EndReceiveFrom(result, ref point);
 
+            if(length <= 1)
+            {
+                Log.Error($"receiveCallback: length");
+                return;
+            }
+
             UdpServerConnection connection;
             uint convID_ = 0;
             bool beforeExistConnection = false;
@@ -113,13 +115,17 @@ namespace LowLevelTransport.Udp
                 CreateConnection(point, ref connection, ref convID_);
             }
 
-            int ret = connection.ARQReceive(dataBuffer, length);
-            if(ret < 0)
+            byte option = dataBuffer[0];
+            byte[] data = new byte[length - 1];
+            Buffer.BlockCopy(dataBuffer, 1, data, 0, length - 1);
+            if(option == (byte)UdpSendOption.ReliableData)
             {
-                if(length == 1)
+                connection.ARQReceive(data, data.Length);
+            }
+            else if(option == (byte)UdpSendOption.UnReliableData)
+            {
+                if(data.Length == 1 && data[0] == (byte)UdpSendOption.CreateConnection)
                 {
-                    if(dataBuffer[0] == (byte)UdpSendOption.CreateConnection) //建立连接
-                    {
                         if(beforeExistConnection) //之前的连接没有被释放掉
                         {
                             connection.Close();
@@ -128,32 +134,32 @@ namespace LowLevelTransport.Udp
                         }
                         
                         byte[] conv = BitConverter.GetBytes(convID_);
-                        byte[] data = new byte[5] {(byte)UdpSendOption.CreateConnectionResponse, 0, 0, 0, 0};
-                        Buffer.BlockCopy(conv, 0, data, 1, conv.Length);
-                        connection.UnReliableSend(data, data.Length);
+                        byte[] buff = new byte[5] {(byte)UdpSendOption.CreateConnectionResponse, 0, 0, 0, 0};
+                        Buffer.BlockCopy(conv, 0, buff, 1, conv.Length);
+                        connection.SendBytes(buff);
                         Log.Info("create an connection convID:{0}", convID_);
-                    }
-                    else if(dataBuffer[0] == (byte)UdpSendOption.Disconnect) //客户端主动释放连接
-                    {
-                        connection.Close();
-                        connection = null;
-                        Log.Info("close an connection");
-                    }
-                    else if(dataBuffer[0] == (byte)UdpSendOption.Heartbeat) //keepalive
-                    {
-                        byte[] data = new byte[1] {(byte)UdpSendOption.HeartbeatResponse};
-                        connection.UnReliableSend(data, data.Length);
-                    }
-                    else
-                    {
-                        Log.Error("receiveCallback option{0}", dataBuffer[0]);
-                    }
+                }
+                else if(data.Length == 1 && data[0] == (byte)UdpSendOption.Disconnect) //客户端主动释放连接
+                {
+                    connection.Close();
+                    connection = null;
+                    Log.Info("close an connection");
+                }
+                else if(data.Length == 1 && data[0] == (byte)UdpSendOption.Heartbeat) //keepalive
+                {
+                    byte[] buff = new byte[1] {(byte)UdpSendOption.HeartbeatResponse};
+                    connection.SendBytes(buff);
                 }
                 else //正数数据收
                 {
-                    connection.NoReliableReceive(dataBuffer, length);
+                    connection.NoReliableReceive(data, data.Length);
                 }
             }
+            else
+            {
+                Log.Error("listen receive data is error {0}", option);
+            }
+            data = null;
             
             server.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point, receiveCallback, server);
         }

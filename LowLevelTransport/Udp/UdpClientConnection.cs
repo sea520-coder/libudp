@@ -26,8 +26,10 @@ namespace LowLevelTransport.Udp
             client.ReceiveBufferSize = receiveBufferSize;
             endPoint = new IPEndPoint(IPAddress.Parse(host), port);
             remoteEndPoint = new IPEndPoint(IPAddress.Parse(remoteHost), remotePort);
+#if WIN
             uint SIO_UDP_CONNRESET = 2550136844; //errorcode = 10054
             client.IOControl((int)SIO_UDP_CONNRESET, new byte[1], null);
+#endif
         }
         public UdpClientConnection(EndPoint ep, int flushInterval = 10, 
             int sendBufferSize = (int)SocketBufferOption.SendSize, int receiveBufferSize = (int)SocketBufferOption.ReceiveSize)
@@ -44,30 +46,13 @@ namespace LowLevelTransport.Udp
             ReceiveMsg();
 
             byte[] data = { (byte)UdpSendOption.CreateConnection };
-            UnReliableSend(data, data.Length);
+            SendBytes(data);
             var timer = new Timer((object obj) => { tcs.TrySetResult(false); }, null, timeout, Timeout.Infinite);
             return tcs.Task;
         }
-        public override void SendBytes(byte[] buff, SendOption sendOption = SendOption.None)
+        protected override void UnReliableSend(byte[] data, int length)
         {
-            if(buff.Length > SendBufferSize() && (sendOption == SendOption.None))
-            {
-                throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
-            }
-           
-            if(sendOption == SendOption.FragmentedReliable)
-            {
-                ARQSend(buff);
-            }
-            else
-            {
-                System.Diagnostics.Debug.Assert(buff.Length > 1);
-                UnReliableSend(buff, buff.Length);
-            }
-        }
-        public override void UnReliableSend(byte[] data, int length)
-        {
-            client.BeginSendTo(data, 0, length, 0, remoteEndPoint, SendCallback, client);
+            client.SendTo(data, 0, length, 0, remoteEndPoint);
         }
         protected override void Dispose()
         {
@@ -89,10 +74,6 @@ namespace LowLevelTransport.Udp
             
             StopKeepAliveTimer();
             client.Close();
-        }
-        private void SendCallback(IAsyncResult result)
-        {
-            client.EndSendTo(result);
         }
         private void ReceiveMsg()
         {
@@ -148,28 +129,37 @@ namespace LowLevelTransport.Udp
                 Log.Error($"receiveCallback exception: {e.Message}");
                 return;
             }
-            if (length <= 0)
+            if (length <= 1)
             {
                 Log.Error($"receiveCallback: length");
                 return;
             }
             Log.Info("receiveCallback {0}", length);
             //24 = ack packages length
-            int ret = ARQReceive(dataBuffer, length);
-            if(ret < 0)
+
+            byte option = dataBuffer[0];
+            byte[] data = new byte[length - 1];
+            Buffer.BlockCopy(dataBuffer, 1, data, 0, length - 1);
+            if(option == (byte)UdpSendOption.ReliableData)
             {
-                if(length == 1)
+                ARQReceive(data, data.Length);
+            }
+            else if(option == (byte)UdpSendOption.UnReliableData)
+            {
+                if(data.Length == 1 && data[0] == (byte)UdpSendOption.HeartbeatResponse)
                 {
-                    if(dataBuffer[0] == (byte)UdpSendOption.HeartbeatResponse)
-                    {
-                        HandleHeartbeat();
-                    }
+                    HandleHeartbeat();
                 }
                 else
                 {
-                    NoReliableReceive(dataBuffer, length);
+                    NoReliableReceive(data, data.Length);
                 }
             }
+            else
+            {
+                Log.Error("receive data is error {0}", option);
+            }
+            data = null;
             
             client.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point, ReceiveCallback, client);
         }
@@ -181,7 +171,7 @@ namespace LowLevelTransport.Udp
         private void SendDisconnect()
         {
             var data = new byte[1] { (byte)UdpSendOption.Disconnect };
-            UnReliableSend(data, data.Length);
+            SendBytes(data);
         }
     }
 }
