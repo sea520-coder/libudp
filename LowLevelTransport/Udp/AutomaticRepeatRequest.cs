@@ -311,19 +311,19 @@ namespace LowLevelTransport.Udp
             return length - index;
         }
 
-        public int Send(byte[] buffer)
+        public int Send(byte[] data)
         {
-            if (buffer.Length <= 0)
+            if (data.Length <= 0)
                 return -1;
 
             var count = 0;
-            if(buffer.Length <= mss)
+            if(data.Length <= mss)
             {
                 count = 1;
             }
             else
             {
-                count = (int)(buffer.Length + (int)mss - 1) / (int)mss;
+                count = (int)(data.Length + (int)mss - 1) / (int)mss;
             }
             if (count > 255) return -2;
             if (count == 0)
@@ -332,9 +332,9 @@ namespace LowLevelTransport.Udp
             var readIndex = 0;
             for(var i = 0; i < count; i++)
             {
-                var size = Math.Min(buffer.Length - readIndex, (int)mss);
+                var size = Math.Min(data.Length - readIndex, (int)mss);
                 var seg = Segment.Get(size);
-                Buffer.BlockCopy(buffer, readIndex, seg.data, 0, size);
+                Buffer.BlockCopy(data, readIndex, seg.data, 0, size);
                 readIndex += size;
                 seg.len = (uint)size;
                 seg.frg = (byte)(count - i - 1);
@@ -495,7 +495,7 @@ namespace LowLevelTransport.Udp
 
                 if ((size - offset) < OVERHEAD)
                     break;
-					
+
                 offset += decode32u(data, offset, ref tmp_conv);
                 if (conv != tmp_conv)
                     return -1;
@@ -770,7 +770,6 @@ namespace LowLevelTransport.Udp
                     change++;
                     earlyRetransSegs++;
                 }
-
                 if(needsend)
                 {
                     segment.xmit++;
