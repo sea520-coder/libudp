@@ -61,8 +61,8 @@ namespace LowLevelTransport
         }
         internal void NoReliableReceive(byte[] dataBuffer, int length)
         {
-            byte[] dst = new byte[length-1];
-            Buffer.BlockCopy(dataBuffer, 1, dst, 0, length-1);
+            byte[] dst = new byte[length];
+            Buffer.BlockCopy(dataBuffer, 0, dst, 0, length);
             lock (recvQueue)
             {
                 recvQueue.Enqueue(dst);

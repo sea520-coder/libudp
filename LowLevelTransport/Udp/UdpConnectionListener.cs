@@ -120,9 +120,10 @@ namespace LowLevelTransport.Udp
                 {
                     if(dataBuffer[0] == (byte)UdpSendOption.CreateConnection) //建立连接
                     {
-                        if(beforeExistConnection)
+                        if(beforeExistConnection) //之前的连接没有被释放掉
                         {
                             connection.Close();
+                            connection = null;
                             CreateConnection(point, ref connection, ref convID_);
                         }
                         
