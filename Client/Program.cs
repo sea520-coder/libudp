@@ -11,65 +11,69 @@ namespace Client
 {
     class Program
     {
-        static UdpClientConnection conn;
-        //static string remoteHost = "192.168.237.131";
-        //static string host = "192.168.237.1";
-        static string remoteHost = "172.26.187.156";
-        static string host = "172.26.187.156";
+        static string remoteHost = "192.168.237.131";
+        static string host = "192.168.237.1";
+        //static string remoteHost = "172.26.187.156";
+        //static string host = "172.26.187.156";
 
-        public static async void ConnectHost()
+        public static async void ConnectHost(Object obj)
         {
-            conn = new UdpClientConnection(host, 1234, remoteHost, 1230);
+            int port = (int)obj;
+            UdpClientConnection conn = new UdpClientConnection(host, port, remoteHost, 1230);
 
             var connectOK = await conn.ConnectAsync();
             if(connectOK)
             {
                 Console.WriteLine("Client");
-              //  Thread t = new Thread(receiveMsg);
-               // t.Start();
-                Thread t2 = new Thread(sendMsg);
-                t2.Start();
+                sendMsg(conn, port);
+              //  Thread t2 = new Thread(sendMsg);
+             //   t2.Start();
+             //   receiveMsg();
             }
             else
             {
-                Console.WriteLine("Error client connect to server");
+                Console.WriteLine("client connect server failed");
             }
+            conn.Close();
         }
         static void Main(string[] args)
         {
-            ConnectHost();
-            receiveMsg();
-     //       conn.Close();
+            Thread t1 = new Thread(ConnectHost);
+        //    Thread t2 = new Thread(ConnectHost);
+            t1.Start(1234);
+       //     t2.Start(1235);
+            Thread.Sleep(100000);
         }
-        static void sendMsg()
+        static void sendMsg(Connection conn, int port)
         {
-            //while (true)
-           // {
-             //   string msg = Console.ReadLine();
-                
-             //   conn.SendBytes(Encoding.UTF8.GetBytes(msg), SendOption.FragmentedReliable);
-                
-                                string msg1 = "aaaa";
-                                string msg2 = "bbb";
-                                string msg3 = "";
-                                for (int i = 0; i < 87; i++)
-                                    msg3 += "c";
-                               string msg4 = "";
-                                for (int i = 0; i < 10000; i++)
-                                    msg4 += "d";
-                                string msg5 = "eee";
-                                string msg6 = "";
-                                for (int i = 0; i < 10000; i++)
-                                    msg6 += "f";  
+            while (true)
+            {  
+                string msg1 = "";
+                if(port == 1234)
+                {
+                    for(int i = 0; i < 60000; i++)
+                    {
+                        msg1 += "a";
+                    }
+                }
+                else if(port == 1235)
+                {
+                    for(int i = 0; i < 60000; i++)
+                    {
+                        msg1 += "b";
+                    }
+                }
                 conn.SendBytes(Encoding.UTF8.GetBytes(msg1), SendOption.FragmentedReliable);
-                conn.SendBytes(Encoding.UTF8.GetBytes(msg2), SendOption.FragmentedReliable);
-                conn.SendBytes(Encoding.UTF8.GetBytes(msg3), SendOption.FragmentedReliable);
-                conn.SendBytes(Encoding.UTF8.GetBytes(msg4), SendOption.FragmentedReliable);
-                conn.SendBytes(Encoding.UTF8.GetBytes(msg5), SendOption.FragmentedReliable);
-                conn.SendBytes(Encoding.UTF8.GetBytes(msg6), SendOption.FragmentedReliable);
-         //   }
+                //      conn.SendBytes(Encoding.UTF8.GetBytes(msg2), SendOption.FragmentedReliable);
+                //      conn.SendBytes(Encoding.UTF8.GetBytes(msg3), SendOption.FragmentedReliable);
+                //      conn.SendBytes(Encoding.UTF8.GetBytes(msg4), SendOption.FragmentedReliable);
+                //      conn.SendBytes(Encoding.UTF8.GetBytes(msg5), SendOption.FragmentedReliable);
+                //      conn.SendBytes(Encoding.UTF8.GetBytes(msg6), SendOption.FragmentedReliable);
+                string msg = Console.ReadLine();
+                conn.SendBytes(Encoding.UTF8.GetBytes(msg), SendOption.FragmentedReliable); 
+           }
         }
-        static void receiveMsg()
+     /* static void receiveMsg()
         {
             while (true)
             {
@@ -78,5 +82,6 @@ namespace Client
                     Console.WriteLine(Encoding.UTF8.GetString(data));
             }
         }
+        */
     }
 }

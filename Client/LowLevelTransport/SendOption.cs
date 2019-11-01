@@ -25,8 +25,8 @@ namespace LowLevelTransport
 
     public enum KeepAliveOption
     {
-        ReconnectLimit = 2,
-        KeepAliveInterval = 10000, // milliseconds
+        ReconnectLimit = 10,
+        KeepAliveInterval = 60000, // milliseconds
     }
 
     public enum ARQOption

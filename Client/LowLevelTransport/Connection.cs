@@ -13,8 +13,7 @@ namespace LowLevelTransport
         private Queue<byte[]> recvQueue = new Queue<byte[]>();
         protected EndPoint remoteEndPoint;
         private AutomaticRepeatRequest arq = null;
-        private readonly object arqLock = new object();
-        private UInt32 mNextUpdateTime = 0;
+        private object arqLock = new object();
         private Timer tickTimer;
         private volatile bool isClosed;
         public bool IsClosed
@@ -161,14 +160,14 @@ namespace LowLevelTransport
                 {
                     return ret;
                 }
-               
+
                 int index = 0;
                 while(true)
                 {
                     var size = arq.PeekSize();
                     if(size <= 0)
                         break;
-                    
+
                     var n = arq.Receive(dataBuffer, index, size);
                     if(n > 0) //数据包
                     {
