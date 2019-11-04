@@ -157,7 +157,6 @@ namespace LowLevelTransport.Udp
             {
                 Log.Error("listen receive data is error {0}", option);
             }
-            data = null;
             
             server.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point, receiveCallback, server);
         }
