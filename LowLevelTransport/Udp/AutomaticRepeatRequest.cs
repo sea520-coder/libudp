@@ -241,7 +241,6 @@ namespace LowLevelTransport.Udp
                 return (int)seg.len;
             if (receiveQueue.Count < seg.frg + 1)
             {
-                Log.Info("PeekSize {0} {1}", receiveQueue.Count, seg.frg);
                 return -2;
             }
 
