@@ -114,7 +114,7 @@ namespace LowLevelTransport.Udp
                 {
                     HandleHeartbeat();
                 }
-                if(data.Length == 1 && data[0] == (byte)UdpSendOption.CreateConnectionResponse)
+                if(data.Length == 5 && data[0] == (byte)UdpSendOption.CreateConnectionResponse)
                 {
                     Log.Info("FirstReceiveCallback");
                     uint convID_ = BitConverter.ToUInt32(data, 1);
