@@ -36,7 +36,7 @@ namespace LowLevelTransport
 
     public enum ARQOption
     {
-        SendWindow = 256, // unit package //根据预计带宽来填值[32, 256] 每秒钟要发多少包
+        SendWindow = 256, // unit package //根据预计带宽来填值[32, 256]
         RecieveWindow = 256, // unit package
         MTU = 1400, //
         Interval = 40, //Update's interval
@@ -51,7 +51,7 @@ namespace LowLevelTransport
     public enum SocketBufferOption
     {
         SendSize = 60000, //Byte
-        ReceiveSize = 60000, //Byte
+        ReceiveSize = 1000000, //Byte
     }
     public enum ConnectOption
     {

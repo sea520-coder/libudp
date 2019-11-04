@@ -13,6 +13,7 @@ namespace LowLevelTransport
         private Queue<byte[]> recvQueue = new Queue<byte[]>();
         protected EndPoint remoteEndPoint;
         private AutomaticRepeatRequest arq = null;
+        private byte[] peekReceiveBuffer = new byte[ushort.MaxValue];
         private object arqLock = new object();
         private Timer tickTimer;
         private volatile bool isClosed;
@@ -190,11 +191,11 @@ namespace LowLevelTransport
                         break;
                     }
 
-                    var n = arq.Receive(data, size);
+                    var n = arq.Receive(peekReceiveBuffer, size);
                     if(n > 0) //数据包
                     {
                         byte[] dst = new byte[n];
-                        Buffer.BlockCopy(data, 0, dst, 0, n);
+                        Buffer.BlockCopy(peekReceiveBuffer, 0, dst, 0, n);
                         recvQueue.Enqueue(dst);
                     }
                     else //确认包 or 错误包 or 部分包
