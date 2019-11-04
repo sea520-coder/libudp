@@ -85,7 +85,7 @@ namespace LowLevelTransport.Udp
         {
             EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
 
-            if(!client.Poll(0, SelectMode.SelectRead))
+            if(!client.Poll(-1, SelectMode.SelectRead))
             {
                 return;
             }

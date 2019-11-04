@@ -86,7 +86,7 @@ namespace LowLevelTransport.Udp
         {
             EndPoint point = new IPEndPoint(IPAddress.Any, 0);
 
-            if(!server.Poll(0, SelectMode.SelectRead))
+            if(!server.Poll(-1, SelectMode.SelectRead))
             {
                 return;
             }
