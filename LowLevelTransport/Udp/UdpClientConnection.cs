@@ -78,43 +78,7 @@ namespace LowLevelTransport.Udp
         private void ReceiveMsg()
         {
             EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
-            client.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref remoteEP, FirstReceiveCallback, client);
-        }
-        private void FirstReceiveCallback(IAsyncResult result)
-        {
-            EndPoint point = new IPEndPoint(IPAddress.Any, 0);
-            int length;
-            try
-            {
-                length = client.EndReceiveFrom(result, ref point);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"FirstReceiveCallback: {e.Message}");
-                return;
-            }
-            if (length <= 0)
-            {
-                Log.Error($"FirstReceiveCallback: length");
-                return;
-            }
-            if(dataBuffer[0] != (byte)UdpSendOption.CreateConnectionResponse)
-            {
-                Log.Error($"FirstReceiveCallback: UdpSendOption.HandShakeDone");
-                return;
-            }
-            Log.Info("FirstReceiveCallback {0}", length);
-            uint convID_ = BitConverter.ToUInt32(dataBuffer, 1);
-            ARQInit(convID_);
-            InitKeepAliveTimer();
-            tcs.TrySetResult(true);
-
-            lock (stateLock)
-            {
-                State = ConnectionState.Connected;
-            }
-
-            client.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point, ReceiveCallback, client);
+            client.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref remoteEP, ReceiveCallback, client);
         }
         private void ReceiveCallback(IAsyncResult result)
         {
@@ -149,6 +113,18 @@ namespace LowLevelTransport.Udp
                 if(data.Length == 1 && data[0] == (byte)UdpSendOption.HeartbeatResponse)
                 {
                     HandleHeartbeat();
+                }
+                if(data.Length == 1 && data[0] == (byte)UdpSendOption.CreateConnectionResponse)
+                {
+                    Log.Info("FirstReceiveCallback");
+                    uint convID_ = BitConverter.ToUInt32(data, 1);
+                    ARQInit(convID_);
+                    InitKeepAliveTimer();
+                    tcs.TrySetResult(true);
+                    lock (stateLock)
+                    {
+                        State = ConnectionState.Connected;
+                    }
                 }
                 else
                 {
