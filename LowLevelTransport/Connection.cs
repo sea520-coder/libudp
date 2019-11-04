@@ -52,10 +52,10 @@ namespace LowLevelTransport
                 return null;
             }
         }
-        internal void NoReliableReceive(byte[] dataBuffer, int length)
+        internal void NoReliableReceive(byte[] data, int length)
         {
             byte[] dst = new byte[length];
-            Buffer.BlockCopy(dataBuffer, 0, dst, 0, length);
+            Buffer.BlockCopy(data, 0, dst, 0, length);
             lock (recvQueue)
             {
                 recvQueue.Enqueue(dst);
@@ -145,9 +145,9 @@ namespace LowLevelTransport
         }
         void EncapReliableSend(byte[] buff, int length)
         {
-            byte[] data = new byte[buff.Length + 1];
+            byte[] data = new byte[length + 1];
             data[0] = (byte)UdpSendOption.ReliableData;
-            Buffer.BlockCopy(buff, 0, data, 1, buff.Length);
+            Buffer.BlockCopy(buff, 0, data, 1, length);
             UnReliableSend(data, data.Length);
             data = null;
         }
@@ -171,12 +171,12 @@ namespace LowLevelTransport
             }
             return n;
         }
-        internal int ARQReceive(byte[] dataBuffer, int length)
+        internal int ARQReceive(byte[] data, int length)
         {
             int ret = -1;
             lock (arqLock)
             {
-                ret = arq.Input(dataBuffer, length);
+                ret = arq.Input(data, length);
                 if(ret < 0)
                 {
                     return ret;
@@ -191,11 +191,11 @@ namespace LowLevelTransport
                         break;
                     }
 
-                    var n = arq.Receive(dataBuffer, index, size);
+                    var n = arq.Receive(data, index, size);
                     if(n > 0) //数据包
                     {
                         byte[] dst = new byte[n];
-                        Buffer.BlockCopy(dataBuffer, index, dst, 0, n);
+                        Buffer.BlockCopy(data, index, dst, 0, n);
                         recvQueue.Enqueue(dst);
                         index += n;
                     }
