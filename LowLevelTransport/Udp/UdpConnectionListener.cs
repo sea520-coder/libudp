@@ -45,13 +45,9 @@ namespace LowLevelTransport.Udp
         public void Start()
         {
             server.Bind(endPoint);
-            Task.Run(() =>
-            {
-                while(true)
-                {
-                    receiveMsg();
-                }
-            });
+            Thread receiveThread = new Thread(ReceiveMsg);
+            receiveThread.IsBackground = true;
+            receiveThread.Start();
         }
 #if DOTNET_CORE
         public async Task<Connection> AcceptAsync(CancellationToken token)
@@ -82,86 +78,89 @@ namespace LowLevelTransport.Udp
         {
              server.SendTo(buff, 0, length, 0, remoteEndPoint);
         }
-        private void receiveMsg()
+        private void ReceiveMsg()
         {
-            EndPoint point = new IPEndPoint(IPAddress.Any, 0);
+            while(true)
+            {
+                EndPoint point = new IPEndPoint(IPAddress.Any, 0);
 
-            if(!server.Poll(-1, SelectMode.SelectRead))
-            {
-                return;
-            }
-
-            int length = -1;
-            try
-            {
-                length = server.ReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"receiveCallback exception: {e.Message}");
-                return;
-            }
-
-            if(length <= 1)
-            {
-                Log.Error($"receiveCallback: length");
-                return;
-            }
-
-            Log.Info("length={0}", length);
-            UdpServerConnection connection;
-            uint convID_ = 0;
-            bool beforeExistConnection = false;
-            if (endPoint2Connection.TryGetValue(point, out connection)) //已建立连接
-            {
-                beforeExistConnection = true;
-            }
-            else //新连接
-            {
-                CreateConnection(point, ref connection, ref convID_);
-            }
-
-            byte option = dataBuffer[0];
-            if(option == (byte)UdpSendOption.ReliableData)
-            {
-                connection.ARQReceive(dataBuffer, 1, length - 1);
-            }
-            else if(option == (byte)UdpSendOption.UnReliableData)
-            {
-                if(length == 2 && dataBuffer[1] == (byte)UdpSendOption.CreateConnection)
+                if(!server.Poll(-1, SelectMode.SelectRead))
                 {
-                        if(beforeExistConnection) //之前的连接没有被释放掉
-                        {
-                            connection.Close();
-                            connection = null;
-                            CreateConnection(point, ref connection, ref convID_);
-                        }
-                        
-                        byte[] conv = BitConverter.GetBytes(convID_);
-                        byte[] buff = new byte[5] {(byte)UdpSendOption.CreateConnectionResponse, 0, 0, 0, 0};
-                        Buffer.BlockCopy(conv, 0, buff, 1, conv.Length);
+                    return;
+                }
+
+                int length = -1;
+                try
+                {
+                    length = server.ReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point);
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"receiveCallback exception: {e.Message}");
+                    return;
+                }
+
+                if(length <= 1)
+                {
+                    Log.Error($"receiveCallback: length");
+                    return;
+                }
+
+                Log.Info("receive length={0}", length);
+                UdpServerConnection connection;
+                uint convID_ = 0;
+                bool beforeExistConnection = false;
+                if (endPoint2Connection.TryGetValue(point, out connection)) //已建立连接
+                {
+                    beforeExistConnection = true;
+                }
+                else //新连接
+                {
+                    CreateConnection(point, ref connection, ref convID_);
+                }
+
+                byte option = dataBuffer[0];
+                if(option == (byte)UdpSendOption.ReliableData)
+                {
+                    connection.ARQReceive(dataBuffer, 1, length - 1);
+                }
+                else if(option == (byte)UdpSendOption.UnReliableData)
+                {
+                    if(length == 2 && dataBuffer[1] == (byte)UdpSendOption.CreateConnection)
+                    {
+                            if(beforeExistConnection) //之前的连接没有被释放掉
+                            {
+                                connection.Close();
+                                connection = null;
+                                CreateConnection(point, ref connection, ref convID_);
+                            }
+                            
+                            byte[] conv = BitConverter.GetBytes(convID_);
+                            byte[] buff = new byte[5] {(byte)UdpSendOption.CreateConnectionResponse, 0, 0, 0, 0};
+                            Buffer.BlockCopy(conv, 0, buff, 1, conv.Length);
+                            connection.SendBytes(buff);
+                            Log.Info("create an connection convID:{0}", convID_);
+                    }
+                    else if(length == 2 && dataBuffer[1] == (byte)UdpSendOption.Disconnect) //客户端主动释放连接
+                    {
+                        connection.Close();
+                        connection = null;
+                        Log.Info("close an connection");
+                    }
+                    else if(length == 2 && dataBuffer[1] == (byte)UdpSendOption.Heartbeat) //keepalive
+                    {
+                        byte[] buff = new byte[1] {(byte)UdpSendOption.HeartbeatResponse};
                         connection.SendBytes(buff);
-                        Log.Info("create an connection convID:{0}", convID_);
+                    }
+                    else //正数数据收
+                    {
+                        connection.NoReliableReceive(dataBuffer, 1, length - 1);
+                    }
                 }
-                else if(length == 2 && dataBuffer[1] == (byte)UdpSendOption.Disconnect) //客户端主动释放连接
+                else
                 {
-                    connection.Close();
-                    connection = null;
-                    Log.Info("close an connection");
+                    Log.Error("listen receive data is error {0}", option);
                 }
-                else if(length == 2 && dataBuffer[1] == (byte)UdpSendOption.Heartbeat) //keepalive
-                {
-                    byte[] buff = new byte[1] {(byte)UdpSendOption.HeartbeatResponse};
-                    connection.SendBytes(buff);
-                }
-                else //正数数据收
-                {
-                    connection.NoReliableReceive(dataBuffer, 1, length - 1);
-                }
-            }
-            else
-            {
-                Log.Error("listen receive data is error {0}", option);
             }
         }
         private void CreateConnection(EndPoint point, ref UdpServerConnection connection, ref uint convID_)
