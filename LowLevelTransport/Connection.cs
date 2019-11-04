@@ -52,10 +52,10 @@ namespace LowLevelTransport
                 return null;
             }
         }
-        internal void NoReliableReceive(byte[] data, int length)
+        internal void NoReliableReceive(byte[] data, int index, int length)
         {
             byte[] dst = new byte[length];
-            Buffer.BlockCopy(data, 0, dst, 0, length);
+            Buffer.BlockCopy(data, index, dst, 0, length);
             lock (recvQueue)
             {
                 recvQueue.Enqueue(dst);
@@ -171,18 +171,17 @@ namespace LowLevelTransport
             }
             return n;
         }
-        internal int ARQReceive(byte[] data, int length)
+        internal int ARQReceive(byte[] data, int index, int length)
         {
             int ret = -1;
             lock (arqLock)
             {
-                ret = arq.Input(data, length);
+                ret = arq.Input(data, index, length);
                 if(ret < 0)
                 {
                     return ret;
                 }
 
-                int index = 0;
                 while(true)
                 {
                     var size = arq.PeekSize();
@@ -191,13 +190,12 @@ namespace LowLevelTransport
                         break;
                     }
 
-                    var n = arq.Receive(data, index, size);
+                    var n = arq.Receive(data, size);
                     if(n > 0) //数据包
                     {
                         byte[] dst = new byte[n];
-                        Buffer.BlockCopy(data, index, dst, 0, n);
+                        Buffer.BlockCopy(data, 0, dst, 0, n);
                         recvQueue.Enqueue(dst);
-                        index += n;
                     }
                     else //确认包 or 错误包 or 部分包
                     {

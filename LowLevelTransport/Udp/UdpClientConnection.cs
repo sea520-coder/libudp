@@ -102,22 +102,20 @@ namespace LowLevelTransport.Udp
             //24 = ack packages length
 
             byte option = dataBuffer[0];
-            byte[] data = new byte[length - 1];
-            Buffer.BlockCopy(dataBuffer, 1, data, 0, length - 1);
             if(option == (byte)UdpSendOption.ReliableData)
             {
-                ARQReceive(data, data.Length);
+                ARQReceive(dataBuffer, 1, length - 1);
             }
             else if(option == (byte)UdpSendOption.UnReliableData)
             {
-                if(data.Length == 1 && data[0] == (byte)UdpSendOption.HeartbeatResponse)
+                if(length == 2 && dataBuffer[1] == (byte)UdpSendOption.HeartbeatResponse)
                 {
                     HandleHeartbeat();
                 }
-                if(data.Length == 5 && data[0] == (byte)UdpSendOption.CreateConnectionResponse)
+                if(length == 6 && dataBuffer[1] == (byte)UdpSendOption.CreateConnectionResponse)
                 {
                     Log.Info("FirstReceiveCallback");
-                    uint convID_ = BitConverter.ToUInt32(data, 1);
+                    uint convID_ = BitConverter.ToUInt32(dataBuffer, 2);
                     ARQInit(convID_);
                     InitKeepAliveTimer();
                     tcs.TrySetResult(true);
@@ -128,14 +126,13 @@ namespace LowLevelTransport.Udp
                 }
                 else
                 {
-                    NoReliableReceive(data, data.Length);
+                    NoReliableReceive(dataBuffer, 1, length - 1);
                 }
             }
             else
             {
                 Log.Error("receive data is error {0}", option);
             }
-            data = null;
             
             client.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point, ReceiveCallback, client);
         }

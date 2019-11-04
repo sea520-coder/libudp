@@ -116,15 +116,13 @@ namespace LowLevelTransport.Udp
             }
 
             byte option = dataBuffer[0];
-            byte[] data = new byte[length - 1];
-            Buffer.BlockCopy(dataBuffer, 1, data, 0, length - 1);
             if(option == (byte)UdpSendOption.ReliableData)
             {
-                connection.ARQReceive(data, data.Length);
+                connection.ARQReceive(dataBuffer, 1, length - 1);
             }
             else if(option == (byte)UdpSendOption.UnReliableData)
             {
-                if(data.Length == 1 && data[0] == (byte)UdpSendOption.CreateConnection)
+                if(length == 2 && dataBuffer[1] == (byte)UdpSendOption.CreateConnection)
                 {
                         if(beforeExistConnection) //之前的连接没有被释放掉
                         {
@@ -139,20 +137,20 @@ namespace LowLevelTransport.Udp
                         connection.SendBytes(buff);
                         Log.Info("create an connection convID:{0}", convID_);
                 }
-                else if(data.Length == 1 && data[0] == (byte)UdpSendOption.Disconnect) //客户端主动释放连接
+                else if(length == 2 && dataBuffer[1] == (byte)UdpSendOption.Disconnect) //客户端主动释放连接
                 {
                     connection.Close();
                     connection = null;
                     Log.Info("close an connection");
                 }
-                else if(data.Length == 1 && data[0] == (byte)UdpSendOption.Heartbeat) //keepalive
+                else if(length == 2 && dataBuffer[1] == (byte)UdpSendOption.Heartbeat) //keepalive
                 {
                     byte[] buff = new byte[1] {(byte)UdpSendOption.HeartbeatResponse};
                     connection.SendBytes(buff);
                 }
                 else //正数数据收
                 {
-                    connection.NoReliableReceive(data, data.Length);
+                    connection.NoReliableReceive(dataBuffer, 1, length - 1);
                 }
             }
             else

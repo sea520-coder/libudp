@@ -254,7 +254,7 @@ namespace LowLevelTransport.Udp
             }
             return length;
         }
-        public int Receive(byte[] buffer, int index, int size)
+        public int Receive(byte[] buffer, int size)
         {
             if (0 == receiveQueue.Count)
                 return -1;
@@ -269,7 +269,7 @@ namespace LowLevelTransport.Udp
                 fastRecover = true;
 
             var count = 0;
-            var length = index;
+            var length = 0;
             foreach(var seg in receiveQueue)
             {
                 uint frg = seg.frg;
@@ -311,7 +311,7 @@ namespace LowLevelTransport.Udp
                 probe |= ASK_TELL;
             }
 
-            return length - index;
+            return length;
         }
 
         public int Send(byte[] data)
@@ -476,13 +476,13 @@ namespace LowLevelTransport.Udp
             if(count > 0)
                 receiveBuffer.RemoveRange(0, count);
         }
-        public int Input(byte[] data, int size)
+        public int Input(byte[] data, int index, int size)
         {
 			if (size < OVERHEAD) return -1;
             var prevUna = sendUna;
             int flag = 0;
             uint latest = 0;
-            int offset = 0;
+            int offset = index;
 			ulong inSegs = 0;
 
             while(true)
@@ -496,7 +496,7 @@ namespace LowLevelTransport.Udp
                 uint tmp_una = 0;
                 uint tmp_length = 0;
 
-                if ((size - offset) < OVERHEAD)
+                if ((size - (offset - index)) < OVERHEAD)
                     break;
 
                 offset += decode32u(data, offset, ref tmp_conv);
@@ -509,7 +509,7 @@ namespace LowLevelTransport.Udp
                 offset += decode32u(data, offset, ref tmp_sn);
                 offset += decode32u(data, offset, ref tmp_una);
                 offset += decode32u(data, offset, ref tmp_length);
-                if ((size - offset) < tmp_length)
+                if ((size - (offset - index)) < tmp_length)
                     return -2;
                 if (tmp_cmd != CMD_PUSH && tmp_cmd != CMD_ACK && tmp_cmd != CMD_WASK && tmp_cmd != CMD_WINS)
                     return -3;
