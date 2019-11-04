@@ -499,8 +499,8 @@ namespace LowLevelTransport.Udp
                     break;
 
                 offset += decode32u(data, offset, ref tmp_conv);
-                if (conv != tmp_conv)
-                    return -1;
+              //   if (conv != tmp_conv)
+              //      return -1;
                 offset += decode8u(data, offset, ref tmp_cmd);
                 offset += decode8u(data, offset, ref tmp_frg);
                 offset += decode16u(data, offset, ref tmp_wnd);

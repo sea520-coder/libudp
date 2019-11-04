@@ -43,7 +43,13 @@ namespace LowLevelTransport.Udp
         public Task<bool> ConnectAsync(int timeout = (int)ConnectOption.Timeout)
         {
             client.Bind(endPoint);
-            ReceiveMsg();
+            Task.Run(() =>
+            {
+                while(true)
+                {
+                    ReceiveMsg();
+                }
+            });
 
             byte[] data = { (byte)UdpSendOption.CreateConnection };
             SendBytes(data);
@@ -78,15 +84,16 @@ namespace LowLevelTransport.Udp
         private void ReceiveMsg()
         {
             EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
-            client.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref remoteEP, ReceiveCallback, client);
-        }
-        private void ReceiveCallback(IAsyncResult result)
-        {
-            EndPoint point = new IPEndPoint(IPAddress.Any, 0);
-            int length = 0;
+
+            if(!client.Poll(0, SelectMode.SelectRead))
+            {
+                return;
+            }
+
+            int length = -1;
             try
             {
-                length = client.EndReceiveFrom(result, ref point);
+                length = client.ReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref remoteEP);
             }
             catch (Exception e)
             {
@@ -99,7 +106,7 @@ namespace LowLevelTransport.Udp
                 return;
             }
             Log.Info("receiveCallback {0}", length);
-            //24 = ack packages length
+            //25 = ack packages length
 
             byte option = dataBuffer[0];
             if(option == (byte)UdpSendOption.ReliableData)
@@ -133,8 +140,6 @@ namespace LowLevelTransport.Udp
             {
                 Log.Error("receive data is error {0}", option);
             }
-            
-            client.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point, ReceiveCallback, client);
         }
         private UInt32 currentMS()
         {

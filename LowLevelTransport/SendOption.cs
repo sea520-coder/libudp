@@ -50,8 +50,8 @@ namespace LowLevelTransport
     }
     public enum SocketBufferOption
     {
-        SendSize = 20480, //Byte
-        ReceiveSize = 20480, //Byte
+        SendSize = 60000, //Byte
+        ReceiveSize = 60000, //Byte
     }
     public enum ConnectOption
     {

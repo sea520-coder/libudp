@@ -45,7 +45,13 @@ namespace LowLevelTransport.Udp
         public void Start()
         {
             server.Bind(endPoint);
-            receiveMsg();
+            Task.Run(() =>
+            {
+                while(true)
+                {
+                    receiveMsg();
+                }
+            });
         }
 #if DOTNET_CORE
         public async Task<Connection> AcceptAsync(CancellationToken token)
@@ -78,24 +84,23 @@ namespace LowLevelTransport.Udp
         }
         private void receiveMsg()
         {
-            EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
-            server.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref remoteEP, receiveCallback, server);
-        }
-        private void CreateConnection(EndPoint point, ref UdpServerConnection connection, ref uint convID_)
-        {
-            convID_ = GenerateConvID();
-            connection = new UdpServerConnection(this, point, convID_);
-            endPoint2Connection.Add(point, connection);
-#if DOTNET_CORE
-            newConnQueue.Post(connection);
-#else
-            newConnQueue.Enqueue(connection);
-#endif
-        }
-        private void receiveCallback(IAsyncResult result)
-        {
             EndPoint point = new IPEndPoint(IPAddress.Any, 0);
-            int length = server.EndReceiveFrom(result, ref point);
+
+            if(!server.Poll(0, SelectMode.SelectRead))
+            {
+                return;
+            }
+
+            int length = -1;
+            try
+            {
+                length = server.ReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point);
+            }
+            catch (Exception e)
+            {
+                Log.Error($"receiveCallback exception: {e.Message}");
+                return;
+            }
 
             if(length <= 1)
             {
@@ -103,6 +108,7 @@ namespace LowLevelTransport.Udp
                 return;
             }
 
+            Log.Info("length={0}", length);
             UdpServerConnection connection;
             uint convID_ = 0;
             bool beforeExistConnection = false;
@@ -157,8 +163,17 @@ namespace LowLevelTransport.Udp
             {
                 Log.Error("listen receive data is error {0}", option);
             }
-            
-            server.BeginReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point, receiveCallback, server);
+        }
+        private void CreateConnection(EndPoint point, ref UdpServerConnection connection, ref uint convID_)
+        {
+            convID_ = GenerateConvID();
+            connection = new UdpServerConnection(this, point, convID_);
+            endPoint2Connection.Add(point, connection);
+#if DOTNET_CORE
+            newConnQueue.Post(connection);
+#else
+            newConnQueue.Enqueue(connection);
+#endif
         }
     }
 }
