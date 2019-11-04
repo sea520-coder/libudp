@@ -41,8 +41,8 @@ namespace LowLevelTransport
         MTU = 1400, //
         Interval = 40, //Update's interval
         Resend = 0, //0 close; 2 2次ACK跨越将会直接重传
-        NC = 1, // 0 open; 1 close 是否关闭流控
-        NoDelay = 1, // 0不启用; 1 启用nodelay模式
+        NC = 0, // 0 open; 1 close 是否关闭流控
+        NoDelay = 0, // 0不启用; 1 启用nodelay模式
     }
     public enum ConvIDOption
     {
