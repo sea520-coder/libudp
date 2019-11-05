@@ -150,5 +150,8 @@ namespace LowLevelTransport.Udp
             var data = new byte[1] { (byte)UdpSendOption.Disconnect };
             SendBytes(data);
         }
+        public void ReconnectTest()
+        {
+        }
     }
 }

@@ -11,8 +11,8 @@ namespace LowLevelTransport.Udp
         private bool keepAliveTimerDisposed = false;
         private Timer keepAliveTimer;
 #if UNITY
-        protected static readonly DateTime UnixEpoch = new DataTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        protcted long UnixTimeStamp() => (long)(DateTime.UtcNow - UnixEpoch).TotalMilliseconds;
+        protected static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        protected long UnixTimeStamp() => (long)(DateTime.UtcNow - UnixEpoch).TotalMilliseconds;
 #else
         protected long UnixTimeStamp() => (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalMilliseconds;
 #endif

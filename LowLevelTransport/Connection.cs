@@ -34,7 +34,10 @@ namespace LowLevelTransport
             set => state = value;
         }
         protected object stateLock = new object();
-        
+
+        public Action TryReconnectCallback;
+        public Action<bool> ReconnectFinishCallback;
+
         protected virtual int SendBufferSize() { throw new NotImplementedException(); }
         protected virtual int ReceiveBufferSize() { throw new NotImplementedException();  }
 
