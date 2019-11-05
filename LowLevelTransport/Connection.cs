@@ -5,12 +5,20 @@ using System.Threading.Tasks;
 using LowLevelTransport.Utils;
 using System.Collections.Generic;
 using LowLevelTransport.Udp;
+#if DOTNET_CORE
+using System.Threading.Channels;
+#endif
 
 namespace LowLevelTransport
 {
     public class Connection
     {
+#if DOTNET_CORE
+        private readonly Channel<byte[]> recvQueue = Channel.CreateBounded<byte[]>(512);
+        public CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+#else
         private Queue<byte[]> recvQueue = new Queue<byte[]>();
+#endif
         protected EndPoint remoteEndPoint;
         private AutomaticRepeatRequest arq = null;
         private byte[] peekReceiveBuffer = new byte[ushort.MaxValue];
@@ -40,7 +48,25 @@ namespace LowLevelTransport
 
         protected virtual int SendBufferSize() { throw new NotImplementedException(); }
         protected virtual int ReceiveBufferSize() { throw new NotImplementedException();  }
-
+#if DOTNET_CORE
+        public byte[] Receive()
+        { 
+            lock (recvQueue)
+            {
+                if(isClosed)
+                {
+                    throw new LowLevelTransportException("Receive From a Not Connected Connection");
+                }
+                byte[] p;  
+                return recvQueue.Reader.TryRead(out p) ? p : null;
+            }
+        }
+        public Task<byte[]> ReceiveAsync(CancellationToken cToken, TimeSpan t)
+        {
+            var task = recvQueue.Reader.ReadAsync(cToken);
+            return task.AsTask().TimeoutAfter<byte[]>((int)t.TotalMilliseconds);
+        }
+#else
         public byte[] Receive()
         {
             lock (recvQueue)
@@ -49,21 +75,29 @@ namespace LowLevelTransport
                 {
                     throw new LowLevelTransportException("Receive From a Not Connected Connection");
                 }
-
                 if (recvQueue.Count != 0)
                     return recvQueue.Dequeue();
 
                 return null;
             }
         }
+#endif
         internal void NoReliableReceive(byte[] data, int index, int length)
         {
             byte[] dst = new byte[length];
             Buffer.BlockCopy(data, index, dst, 0, length);
+            
+#if DOTNET_CORE
+            if(!recvQueue.Writer.TryWrite(dst))
+            {
+                throw new LowLevelTransportException("receive queue overload");
+            }
+#else
             lock (recvQueue)
             {
                 recvQueue.Enqueue(dst);
             }
+#endif
         }
         public void Close()
         {
@@ -197,9 +231,9 @@ namespace LowLevelTransport
                     var n = arq.Receive(peekReceiveBuffer, size);
                     if(n > 0) //数据包
                     {
-                        byte[] dst = new byte[n];
-                        Buffer.BlockCopy(peekReceiveBuffer, 0, dst, 0, n);
-                        recvQueue.Enqueue(dst);
+
+                        NoReliableReceive(peekReceiveBuffer, 0, n);
+
                     }
                     else //确认包 or 错误包 or 部分包
                     {
