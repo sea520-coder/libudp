@@ -205,11 +205,11 @@ namespace LowLevelTransport.Udp
 
         List<Segment> sendQueue = new List<Segment>(16);
         List<Segment> receiveQueue = new List<Segment>(16);
-        List<Segment> sendBuffer = new List<Segment>(16); //存着远端已确认的数据acked=1等下次删除，和未确认的数据， 要发送的数据
+        List<Segment> sendBuffer = new List<Segment>(16); //存着远端已确认的数据acked=1等下次input删除，和未确认的数据， 要发送的数据
         List<Segment> receiveBuffer = new List<Segment>(16);
         List<ackItem> ackList = new List<ackItem>(16);
 
-        public uint SendWindow { get { return sendWindow; } } //单位(包)
+        public uint SendWindow { get { return sendWindow; } }
         public uint RecieveWindow { get { return receiveWindow; } }
         public int WaitSend { get { return sendBuffer.Count + sendQueue.Count; } }
 

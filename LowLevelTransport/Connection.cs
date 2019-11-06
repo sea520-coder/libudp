@@ -135,7 +135,7 @@ namespace LowLevelTransport
             tickTimer = new Timer((object o) => Update(), null, Interval(), Timeout.Infinite);
         }
         internal void StopTimer() => tickTimer.Change(Timeout.Infinite, Timeout.Infinite);
-        internal void ARQInit(uint convID_) //因为客户端和服务器窗口大小不一样，是否写成2个函数
+        internal void ARQInit(uint convID_)
         {
             lock (arqLock)
             {
@@ -211,7 +211,7 @@ namespace LowLevelTransport
                 {
                     Log.Error("ARQSend {0} {1}", arq.WaitSend, arq.SendWindow);
                     return 0;
-                    //是否断开此连接，而不影响其它连接
+                    //是否断开此连接，避免内存耗尽;影响其它连接
                 }
 
                 n = arq.Send(buff);
@@ -223,7 +223,7 @@ namespace LowLevelTransport
             int ret = -1;
             lock (arqLock)
             {
-                ret = arq.Input(data, index, length);
+                ret = arq.Input(data, index, length); //扔数据给arq
                 if(ret < 0)
                 {
                     return ret;
@@ -237,7 +237,7 @@ namespace LowLevelTransport
                         break;
                     }
 
-                    var n = arq.Receive(peekReceiveBuffer, size);
+                    var n = arq.Receive(peekReceiveBuffer, size); //从arq中取数据
                     if(n > 0) //数据包
                     {
 

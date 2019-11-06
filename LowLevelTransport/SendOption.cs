@@ -8,15 +8,16 @@ namespace LowLevelTransport
 
     public enum UdpSendOption : byte
     {
-        //No Reliable data
-        CreateConnection = 0,
-        CreateConnectionResponse = 1,
-        Heartbeat = 2,
-        HeartbeatResponse = 3,
-        Disconnect = 4,
-        UnReliableData = 5,
+        UnReliableData = 0,
         // Reliable data
-        ReliableData = 6,
+        ReliableData = 1,
+        // No Reliable data
+        CreateConnection = 2,
+        CreateConnectionResponse = 3,
+        Heartbeat = 4,
+        HeartbeatResponse = 5,
+        Disconnect = 6,
+       
     }
 
     public enum ConnectionState
@@ -36,8 +37,8 @@ namespace LowLevelTransport
 
     public enum ARQOption
     {
-        SendWindow = 256, // unit package //根据预计带宽来填值[32, 256]
-        RecieveWindow = 256, // unit package
+        SendWindow = 256, //(包)
+        RecieveWindow = 256, //(包)
         MTU = 1400, //
         Interval = 40, //发送间隔，越小发的越快
         Resend = 0, //0 close; 2 2次ACK跨越将会直接重传
@@ -55,6 +56,6 @@ namespace LowLevelTransport
     }
     public enum ConnectOption
     {
-        Timeout = 3000, //second
+        Timeout = 3000, //millisecond
     }
 }
