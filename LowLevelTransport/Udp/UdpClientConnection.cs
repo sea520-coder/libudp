@@ -42,19 +42,56 @@ namespace LowLevelTransport.Udp
         }
         public Task<bool> ConnectAsync(int timeout = (int)ConnectOption.Timeout)
         {
-            client.Bind(endPoint);
-            Thread receiveThread = new Thread(ReceiveMsg);
-            receiveThread.IsBackground = true;
+            lock (stateLock)
+            {
+                if(State != ConnectionState.NotConnected)
+                {
+                    throw new InvalidOperationException("Cannot connect as the Connection is already connected.");
+                }
+                State = ConnectionState.Connecting;
+            }
+
+            try
+            {
+                client.Bind(endPoint);
+            }
+            catch(SocketException e)
+            {
+                State = ConnectionState.NotConnected;
+                throw new LowLevelTransportException("A socket exception occured while binding to the port.", e);
+            }
+
+            Thread receiveThread = new Thread(ReceiveMsg)
+            {
+                IsBackground = true
+            };
             receiveThread.Start();
 
             byte[] data = { (byte)UdpSendOption.CreateConnection };
-            SendBytes(data);
+            EncapUnReliableSend(data, data.Length);
             var timer = new Timer((object obj) => { tcs.TrySetResult(false); }, null, timeout, Timeout.Infinite);
             return tcs.Task;
         }
         protected override void UnReliableSend(byte[] data, int length)
         {
-            client.SendTo(data, 0, length, 0, remoteEndPoint);
+            try
+            {
+                client.SendTo(data, 0, length, 0, remoteEndPoint);
+            }
+            catch(ObjectDisposedException e)
+            {
+                Log.Info($"Connection SendTo Exception: {e.Message}");
+                return;
+            }
+            catch(SocketException e)
+            {
+                Log.Info($"Connection SendTo Exception: {e.Message}");
+                return;
+            }
+            catch (Exception e)
+            {
+                HandleDisconnect(e);
+            }
         }
         protected override void Dispose()
         {
@@ -93,14 +130,19 @@ namespace LowLevelTransport.Udp
                 {
                     length = client.ReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref remoteEP);
                 }
+                catch(ObjectDisposedException)
+                {
+                    return;
+                }
                 catch (Exception e)
                 {
-                    Log.Error($"receiveCallback exception: {e.Message}");
+                    HandleDisconnect(e);
                     return;
                 }
                 if (length <= 1)
                 {
-                    Log.Error($"receiveCallback: length");
+                    Log.Error($"ReceiveMsg: length{0}", length);
+                    HandleDisconnect(new Exception("Received Zero Bytes in ReceiveFrom"));
                     return;
                 }
                 Log.Info("receiveCallback {0}", length);
@@ -152,6 +194,22 @@ namespace LowLevelTransport.Udp
         }
         public void ReconnectTest()
         {
+        }
+        private void HandleDisconnect(Exception e)
+        {
+            bool invoke = false;
+            lock (stateLock)
+            {
+                if(State == ConnectionState.Connected)
+                {
+                    State = ConnectionState.Disconnecting;
+                    invoke = true;
+                }
+            }
+            if(invoke)
+            {
+                InvokeDisconnected(e);
+            }
         }
     }
 }

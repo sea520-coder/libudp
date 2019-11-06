@@ -16,14 +16,29 @@ namespace LowLevelTransport.Udp
             this.Listener = listener;
             this.remoteEndPoint = endPoint;
             ARQInit(convID_);
+            lock (stateLock)
+            {
+                State = ConnectionState.Connected;
+            }
         }
         protected override void UnReliableSend(byte[] data, int length)
         {
+            lock (stateLock)
+            {
+                if(State != ConnectionState.Connected)
+                {
+                    return;
+                }
+            }
             Listener.SendBytes(data, length, remoteEndPoint);
         }
         protected override void Dispose()
         {
             Listener.RemoveConnectionTo(remoteEndPoint);
+            lock(stateLock)
+            {
+                State = ConnectionState.NotConnected;
+            }
         }
     }
 }

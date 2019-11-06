@@ -25,14 +25,7 @@ namespace LowLevelTransport.Udp
         {
             if(Interlocked.Read(ref reconnectTimes) > (long)KeepAliveOption.ReconnectLimit)
             {
-                lock (stateLock)
-                {
-                    if(State == ConnectionState.Connected)
-                    {
-                        State = ConnectionState.Disconnecting;
-                    }
-                }
-                Close();
+                HandleDisconnect(new Exception("Reconnect too many times"));
                 return;
             }
             Interlocked.Add(ref reconnectTimes, 1);

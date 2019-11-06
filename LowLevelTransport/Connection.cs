@@ -167,19 +167,28 @@ namespace LowLevelTransport
             {
                 throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
             }
-           
-            if(sendOption == SendOption.FragmentedReliable)
+
+            if (State != ConnectionState.Connected)
+            {
+                throw new LowLevelTransportException("Could not send data as this Connection is not connected");
+            }
+
+            if (sendOption == SendOption.FragmentedReliable)
             {
                 ARQSend(buff);
             }
             else
             {
-                byte[] data = new byte[buff.Length + 1];
-                data[0] = (byte)UdpSendOption.UnReliableData;
-                Buffer.BlockCopy(buff, 0, data, 1, buff.Length);
-                UnReliableSend(data, data.Length);
-                data = null;
+                EncapUnReliableSend(buff, buff.Length);
             }
+        }
+        protected void EncapUnReliableSend(byte[] buff, int length)
+        {
+            byte[] data = new byte[length + 1];
+            data[0] = (byte)UdpSendOption.UnReliableData;
+            Buffer.BlockCopy(buff, 0, data, 1, length);
+            UnReliableSend(data, data.Length);
+            data = null;
         }
         void EncapReliableSend(byte[] buff, int length)
         {
