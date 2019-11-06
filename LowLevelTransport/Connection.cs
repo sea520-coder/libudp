@@ -198,7 +198,7 @@ namespace LowLevelTransport
             int n = 0;
             lock (arqLock)
             {
-                if(arq.WaitSend >= arq.SendWindow) //发送缓存积累(发的太快，接收能力慢)
+                if(arq.WaitSend >= 2 * arq.SendWindow) //发送缓存积累
                 {
                     Log.Error("ARQSend {0} {1}", arq.WaitSend, arq.SendWindow);
                     return 0;
