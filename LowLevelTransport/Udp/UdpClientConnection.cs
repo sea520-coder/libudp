@@ -19,7 +19,7 @@ namespace LowLevelTransport.Udp
         protected override int ReceiveBufferSize() => client.ReceiveBufferSize;
 
         public UdpClientConnection(string host, int port, string remoteHost, int remotePort, 
-            int sendBufferSize = (int)SocketBufferOption.SendSize, int receiveBufferSize = (int)SocketBufferOption.ReceiveSize)
+            int sendBufferSize = (int)ClientSocketBufferOption.SendSize, int receiveBufferSize = (int)ClientSocketBufferOption.ReceiveSize)
         {
             client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             client.SendBufferSize = sendBufferSize;
@@ -32,7 +32,7 @@ namespace LowLevelTransport.Udp
 #endif
         }
         public UdpClientConnection(EndPoint ep, int flushInterval = 10, 
-            int sendBufferSize = (int)SocketBufferOption.SendSize, int receiveBufferSize = (int)SocketBufferOption.ReceiveSize)
+            int sendBufferSize = (int)ClientSocketBufferOption.SendSize, int receiveBufferSize = (int)ClientSocketBufferOption.ReceiveSize)
         {
             endPoint = new IPEndPoint(IPAddress.Any, 0);
             remoteEndPoint = ep;

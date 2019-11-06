@@ -49,10 +49,15 @@ namespace LowLevelTransport
     {
         Max = 100000, //convid生成的最大值
     }
-    public enum SocketBufferOption
+    public enum ServerSocketBufferOption
     {
         SendSize = 1000000, //Byte
         ReceiveSize = 1000000, //Byte
+    }
+    public enum ClientSocketBufferOption
+    {
+        SendSize = 60000, //Byte
+        ReceiveSize = 60000, //Byte
     }
     public enum ConnectOption
     {

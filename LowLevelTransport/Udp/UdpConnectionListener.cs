@@ -29,8 +29,8 @@ namespace LowLevelTransport.Udp
         }
         internal int SendBufferSize() => server.SendBufferSize;
         internal int ReceiveBufferSize() => server.ReceiveBufferSize;
-        public UdpConnectionListener(string host, int port, int sendBufferSize = (int)SocketBufferOption.SendSize, 
-            int receiveBufferSize = (int)SocketBufferOption.ReceiveSize)
+        public UdpConnectionListener(string host, int port, int sendBufferSize = (int)ServerSocketBufferOption.SendSize, 
+            int receiveBufferSize = (int)ServerSocketBufferOption.ReceiveSize)
         {
             server = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             server.SendBufferSize = sendBufferSize;
