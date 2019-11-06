@@ -117,7 +117,7 @@ namespace LowLevelTransport.Udp
                 
                 return offset - prev;
             }
-            private static Stack<Segment> msSegmentPool = new Stack<Segment>(128);
+            private static Stack<Segment> msSegmentPool = new Stack<Segment>(256);
             public static Segment Get(int size)
             {
                 if(msSegmentPool.Count > 0)
@@ -375,7 +375,7 @@ namespace LowLevelTransport.Udp
         {
             if (_itimediff(sn, sendUna) < 0 || _itimediff(sn, sendNextNumber) >= 0)
                 return;
-            foreach(var seg in sendBuffer)
+            foreach(var seg in sendBuffer) //确认过期的包没有立即从sendBuffer移除，直到收到una包后删除
             {
                 if(sn == seg.sn)
                 {
@@ -692,6 +692,7 @@ namespace LowLevelTransport.Udp
             var cwnd_ = Math.Min(sendWindow, remoteWindow);
             if (0 == nocwnd) cwnd_ = Math.Min(cwnd, cwnd_);
 
+            //sendQueue -> sendBuffer
             var newSegsCount = 0;
             for(var k = 0; k < sendQueue.Count; k++)
             {
