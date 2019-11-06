@@ -163,14 +163,14 @@ namespace LowLevelTransport
         }
         public void SendBytes(byte[] buff, SendOption sendOption = SendOption.None)
         {
-            if(buff.Length > SendBufferSize() && (sendOption == SendOption.None))
-            {
-                throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
-            }
-
             if (State != ConnectionState.Connected)
             {
                 throw new LowLevelTransportException("Could not send data as this Connection is not connected");
+            }
+
+            if (buff.Length > SendBufferSize() && (sendOption == SendOption.None))
+            {
+                throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
             }
 
             if (sendOption == SendOption.FragmentedReliable)
