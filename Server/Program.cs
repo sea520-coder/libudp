@@ -11,6 +11,7 @@ namespace Server
 {
     class Program
     {
+        static Queue<Connection> queue = new Queue<Connection>();
         static UdpConnectionListener listener;
         static CancellationTokenSource source = new CancellationTokenSource();
         static string host = "192.168.237.128";
@@ -22,20 +23,23 @@ namespace Server
             while(!token.IsCancellationRequested)
             {
                 Connection newconn = await listener.AcceptAsync(token);
-                _ = Task.Run( () =>
-               {
+                queue.Enqueue(newconn);
+                _ = Task.Run(() =>
+                {
                     while(true)
                     {
-                        byte[] data = newconn.Receive();
-                        if(data != null)
-                            Console.WriteLine(data.Length);
+                        foreach(var newconn in queue)
+                        {
+                            byte[] data = newconn.Receive();
+                            if(data != null)
+                                Console.WriteLine(data.Length);
                             //Console.WriteLine(Encoding.UTF8.GetString(data));
+                        }
+                        
                     }
-               });
-               
+                });
             }
         }
-
         static void Main(string[] args)
         {
             listener = new UdpConnectionListener(host, 1230);
@@ -44,7 +48,7 @@ namespace Server
             CancellationTokenSource source = new CancellationTokenSource();
 
             Console.WriteLine("Server");
-            AcceptLoop();
+            _ = Task.Run( AcceptLoop );
             string msg = Console.ReadLine();
         }
     }
