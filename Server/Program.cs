@@ -11,18 +11,17 @@ namespace Server
 {
     class Program
     {
-        static Connection newconn;
         static UdpConnectionListener listener;
         static CancellationTokenSource source = new CancellationTokenSource();
-        //static string host = "192.168.237.131";
-        static string host = "172.26.187.156";
+        static string host = "192.168.237.128";
+        //static string host = "172.26.187.156";
 
         static async void AcceptLoop()
         {
             CancellationToken token = source.Token;
             while(!token.IsCancellationRequested)
             {
-                newconn = await listener.AcceptAsync(token);
+                Connection newconn = await listener.AcceptAsync(token);
                 _ = Task.Run( () =>
                {
                     while(true)
@@ -33,6 +32,7 @@ namespace Server
                             //Console.WriteLine(Encoding.UTF8.GetString(data));
                     }
                });
+               
             }
         }
 
@@ -43,23 +43,9 @@ namespace Server
 
             CancellationTokenSource source = new CancellationTokenSource();
 
-            Thread t = new Thread(sendMsg);
-            t.Start();
-
             Console.WriteLine("Server");
-            _ = Task.Run(AcceptLoop);
-        }
-        static void sendMsg()
-        {
-            while (true)
-            {
-                string msg = Console.ReadLine();
-                if (newconn != null)
-                   newconn.SendBytes(Encoding.UTF8.GetBytes(msg), SendOption.FragmentedReliable);
-                else
-                    Console.WriteLine("newconn is null");
-                
-            }
+            AcceptLoop();
+            string msg = Console.ReadLine();
         }
     }
 }
