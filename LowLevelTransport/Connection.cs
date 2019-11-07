@@ -57,7 +57,7 @@ namespace LowLevelTransport
                 {
                     throw new LowLevelTransportException("Receive From a Not Connected Connection");
                 }
-                byte[] p;  
+                byte[] p;
                 return recvQueue.Reader.TryRead(out p) ? p : null;
             }
         }
@@ -86,7 +86,6 @@ namespace LowLevelTransport
         {
             byte[] dst = new byte[length];
             Buffer.BlockCopy(data, index, dst, 0, length);
-            
 #if DOTNET_CORE
             if(!recvQueue.Writer.TryWrite(dst))
             {
@@ -98,6 +97,7 @@ namespace LowLevelTransport
                 recvQueue.Enqueue(dst);
             }
 #endif
+            dst = null;
         }
         public void Close()
         {
