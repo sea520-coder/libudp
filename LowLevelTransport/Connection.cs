@@ -223,7 +223,7 @@ namespace LowLevelTransport
             int ret = -1;
             lock (arqLock)
             {
-                ret = arq.Input(data, index, length); //扔数据给arq
+                ret = arq.Input(data, index, length, true); //扔数据给arq
                 if(ret < 0)
                 {
                     return ret;

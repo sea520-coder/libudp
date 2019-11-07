@@ -475,7 +475,7 @@ namespace LowLevelTransport.Udp
             if(count > 0)
                 receiveBuffer.RemoveRange(0, count);
         }
-        public int Input(byte[] data, int index, int size)
+        public int Input(byte[] data, int index, int size, bool ackNoDelay)
         {
 			if (size < OVERHEAD) return -1;
             var prevUna = sendUna;
@@ -596,6 +596,11 @@ namespace LowLevelTransport.Udp
                 }
             }
 
+            if(ackNoDelay && ackList.Count > 0)
+            {
+                Flush(true);
+            }
+
             return 0;
         }
         ushort WindowUnUsed()
@@ -604,7 +609,7 @@ namespace LowLevelTransport.Udp
                 return (ushort)( receiveWindow - receiveQueue.Count );
             return 0;
         }
-        void Flush()
+        void Flush(bool ackOnly)
         {
             var seg = new Segment();
             seg.conv = conv;
@@ -644,6 +649,12 @@ namespace LowLevelTransport.Udp
                 }
             }
             ackList.Clear();
+
+            if(ackOnly)
+            {
+                flushBuffer();
+                return;
+            }
 
             var current = currentMS();
 
