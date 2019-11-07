@@ -853,7 +853,7 @@ namespace LowLevelTransport.Udp
                 if(_itimediff(current, ts_flush) >= 0)
                     ts_flush = current + interval;
                 
-                Flush();
+                Flush(false);
             }
         }
         internal uint Check()
