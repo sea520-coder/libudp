@@ -17,13 +17,15 @@ namespace LowLevelTransport.Udp
         protected TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>(null, TaskCreationOptions.RunContinuationsAsynchronously);
         protected override int SendBufferSize() => client.SendBufferSize;
         protected override int ReceiveBufferSize() => client.ReceiveBufferSize;
-
+        private Thread receiveThread;
         public UdpClientConnection(string host, int port, string remoteHost, int remotePort, 
             int sendBufferSize = (int)ClientSocketBufferOption.SendSize, int receiveBufferSize = (int)ClientSocketBufferOption.ReceiveSize)
         {
-            client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            client.SendBufferSize = sendBufferSize;
-            client.ReceiveBufferSize = receiveBufferSize;
+            client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
+            {
+                SendBufferSize = sendBufferSize,
+                ReceiveBufferSize = receiveBufferSize
+            };
             endPoint = new IPEndPoint(IPAddress.Parse(host), port);
             remoteEndPoint = new IPEndPoint(IPAddress.Parse(remoteHost), remotePort);
 #if WIN
@@ -36,9 +38,11 @@ namespace LowLevelTransport.Udp
         {
             endPoint = new IPEndPoint(IPAddress.Any, 0);
             remoteEndPoint = ep;
-            client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            client.SendBufferSize = sendBufferSize;
-            client.ReceiveBufferSize = receiveBufferSize;
+            client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
+            {
+                SendBufferSize = sendBufferSize,
+                ReceiveBufferSize = receiveBufferSize
+            };
         }
         public Task<bool> ConnectAsync(int timeout = (int)ConnectOption.Timeout)
         {
@@ -61,7 +65,7 @@ namespace LowLevelTransport.Udp
                 throw new LowLevelTransportException("A socket exception occured while binding to the port.", e);
             }
 
-            Thread receiveThread = new Thread(ReceiveMsg)
+            receiveThread = new Thread(ReceiveMsg)
             {
                 IsBackground = true
             };
@@ -111,6 +115,7 @@ namespace LowLevelTransport.Udp
                 State = ConnectionState.NotConnected;
             }
             
+            receiveThread.Abort();
             StopKeepAliveTimer();
             client.Close();
         }
