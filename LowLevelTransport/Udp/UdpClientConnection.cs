@@ -127,13 +127,12 @@ namespace LowLevelTransport.Udp
         {
             while(true)
             {
-                EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
-
-                if(!client.Poll(1000000, SelectMode.SelectRead))
+                if(!client.Poll(-1, SelectMode.SelectRead))
                 {
                     continue;
                 }
 
+                EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
                 int length = -1;
                 try
                 {

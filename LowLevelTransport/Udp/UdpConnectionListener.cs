@@ -90,13 +90,12 @@ namespace LowLevelTransport.Udp
         {
             while(true)
             {
-                EndPoint point = new IPEndPoint(IPAddress.Any, 0);
-
-                if(!server.Poll(1000000, SelectMode.SelectRead))
+                if(!server.Poll(-1, SelectMode.SelectRead))
                 {
                     continue;
                 }
 
+                EndPoint point = new IPEndPoint(IPAddress.Any, 0);
                 int length = -1;
                 try
                 {

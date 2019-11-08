@@ -188,7 +188,6 @@ namespace LowLevelTransport
             data[0] = (byte)UdpSendOption.UnReliableData;
             Buffer.BlockCopy(buff, 0, data, 1, length);
             UnReliableSend(data, data.Length);
-            data = null;
         }
         void EncapReliableSend(byte[] buff, int length)
         {
@@ -196,7 +195,6 @@ namespace LowLevelTransport
             data[0] = (byte)UdpSendOption.ReliableData;
             Buffer.BlockCopy(buff, 0, data, 1, length);
             UnReliableSend(data, data.Length);
-            data = null;
         }
         protected virtual void UnReliableSend(byte[] data, int length)
         {
