@@ -16,6 +16,7 @@ namespace LowLevelTransport.Udp
         private Socket server;
         private readonly EndPoint endPoint;
         private readonly byte[] dataBuffer = new byte[ushort.MaxValue];
+        private Thread receiveThread;
         private readonly Dictionary<EndPoint, UdpServerConnection> endPoint2Connection = new Dictionary<EndPoint, UdpServerConnection>();
 #if DOTNET_CORE
         private readonly BufferBlock<Connection> newConnQueue = new BufferBlock<Connection>();
@@ -32,9 +33,13 @@ namespace LowLevelTransport.Udp
         public UdpConnectionListener(string host, int port, int sendBufferSize = (int)ServerSocketBufferOption.SendSize, 
             int receiveBufferSize = (int)ServerSocketBufferOption.ReceiveSize)
         {
-            server = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            server.SendBufferSize = sendBufferSize;
-            server.ReceiveBufferSize = receiveBufferSize;
+            server = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
+            {
+                SendBufferSize = sendBufferSize,
+                ReceiveBufferSize = receiveBufferSize,
+                SendTimeout = 500,
+                ReceiveTimeout = 500,
+            };
             endPoint = new IPEndPoint(IPAddress.Parse(host), port);
 #if WIN 
             //解决对端关闭了，但server端还调用SendBytes()给对端发送数据
@@ -45,8 +50,10 @@ namespace LowLevelTransport.Udp
         public void Start()
         {
             server.Bind(endPoint);
-            Thread receiveThread = new Thread(ReceiveMsg);
-            receiveThread.IsBackground = true;
+            receiveThread = new Thread(ReceiveMsg)
+            {
+                IsBackground = true
+            };
             receiveThread.Start();
         }
 #if DOTNET_CORE
@@ -64,6 +71,7 @@ namespace LowLevelTransport.Udp
 #endif
         public void Close()
         {
+            receiveThread.Abort();
             server.Close();
         }
         internal void RemoveConnectionTo(EndPoint endPoint)
@@ -72,11 +80,11 @@ namespace LowLevelTransport.Udp
         }
         internal void SendBytes(byte[] buff, EndPoint remoteEndPoint)
         {
-            server.SendTo(buff, 0, buff.Length, 0, remoteEndPoint);
+            server.SendTo(buff, 0, buff.Length, SocketFlags.None, remoteEndPoint);
         }
         internal void SendBytes(byte[] buff, int length, EndPoint remoteEndPoint)
         {
-             server.SendTo(buff, 0, length, 0, remoteEndPoint);
+             server.SendTo(buff, 0, length, SocketFlags.None, remoteEndPoint);
         }
         private void ReceiveMsg()
         {
@@ -84,26 +92,30 @@ namespace LowLevelTransport.Udp
             {
                 EndPoint point = new IPEndPoint(IPAddress.Any, 0);
 
-                if(!server.Poll(-1, SelectMode.SelectRead))
+                if(!server.Poll(1000000, SelectMode.SelectRead))
                 {
-                    return;
+                    continue;
                 }
 
                 int length = -1;
                 try
                 {
-                    length = server.ReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref point);
+                    length = server.ReceiveFrom(dataBuffer, 0, dataBuffer.Length, SocketFlags.None, ref point);
                 }
-                catch (Exception e)
+                catch (SocketException e)
                 {
                     Log.Error($"receiveCallback exception: {e.Message}");
+                    return;
+                }
+                catch (ObjectDisposedException)
+                {
                     return;
                 }
 
                 if(length <= 1)
                 {
                     Log.Error($"receiveCallback: length");
-                    return;
+                    continue;
                 }
 
                 Log.Info("receive length={0}", length);

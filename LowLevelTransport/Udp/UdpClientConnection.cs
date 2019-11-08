@@ -24,7 +24,9 @@ namespace LowLevelTransport.Udp
             client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
             {
                 SendBufferSize = sendBufferSize,
-                ReceiveBufferSize = receiveBufferSize
+                ReceiveBufferSize = receiveBufferSize,
+                SendTimeout = 500,
+                ReceiveTimeout = 500
             };
             endPoint = new IPEndPoint(IPAddress.Parse(host), port);
             remoteEndPoint = new IPEndPoint(IPAddress.Parse(remoteHost), remotePort);
@@ -41,7 +43,9 @@ namespace LowLevelTransport.Udp
             client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
             {
                 SendBufferSize = sendBufferSize,
-                ReceiveBufferSize = receiveBufferSize
+                ReceiveBufferSize = receiveBufferSize,
+                SendTimeout = 500,
+                ReceiveTimeout = 500,
             };
         }
         public Task<bool> ConnectAsync(int timeout = (int)ConnectOption.Timeout)
@@ -80,16 +84,16 @@ namespace LowLevelTransport.Udp
         {
             try
             {
-                client.SendTo(data, 0, length, 0, remoteEndPoint);
+                client.SendTo(data, 0, length, SocketFlags.None, remoteEndPoint);
             }
             catch(ObjectDisposedException e)
             {
-                Log.Info($"Connection SendTo Exception: {e.Message}");
+                Log.Info($"UnReliableSend ObjectDisposedException: {e.Message}");
                 return;
             }
             catch(SocketException e)
             {
-                Log.Info($"Connection SendTo Exception: {e.Message}");
+                Log.Info($"UnReliableSend SocketException: {e.Message}");
                 return;
             }
             catch (Exception e)
@@ -125,30 +129,31 @@ namespace LowLevelTransport.Udp
             {
                 EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
 
-                if(!client.Poll(-1, SelectMode.SelectRead))
+                if(!client.Poll(1000000, SelectMode.SelectRead))
                 {
-                    return;
+                    continue;
                 }
 
                 int length = -1;
                 try
                 {
-                    length = client.ReceiveFrom(dataBuffer, 0, dataBuffer.Length, 0, ref remoteEP);
+                    length = client.ReceiveFrom(dataBuffer, 0, dataBuffer.Length, SocketFlags.None, ref remoteEP);
+                }
+                catch (SocketException e)
+                {
+                    HandleDisconnect(e);
+                    return;
                 }
                 catch(ObjectDisposedException)
                 {
                     return;
                 }
-                catch (Exception e)
-                {
-                    HandleDisconnect(e);
-                    return;
-                }
+
                 if (length <= 1)
                 {
                     Log.Error($"ReceiveMsg: length{0}", length);
                     HandleDisconnect(new Exception("Received Zero Bytes in ReceiveFrom"));
-                    return;
+                    continue;
                 }
                 Log.Info("receiveCallback {0}", length);
                 //25 = ack packages length
