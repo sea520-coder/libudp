@@ -97,7 +97,6 @@ namespace LowLevelTransport
                 recvQueue.Enqueue(dst);
             }
 #endif
-            dst = null;
         }
         public void Close()
         {
@@ -184,17 +183,19 @@ namespace LowLevelTransport
         }
         protected void EncapUnReliableSend(byte[] buff, int length)
         {
-            byte[] data = new byte[length + 1];
+            byte[] data = MemoryPool.Malloc(length + 1);
             data[0] = (byte)UdpSendOption.UnReliableData;
             Buffer.BlockCopy(buff, 0, data, 1, length);
-            UnReliableSend(data, data.Length);
+            UnReliableSend(data, length + 1);
+            MemoryPool.Free(data);
         }
         void EncapReliableSend(byte[] buff, int length)
         {
-            byte[] data = new byte[length + 1];
+            byte[] data = MemoryPool.Malloc(length + 1);
             data[0] = (byte)UdpSendOption.ReliableData;
             Buffer.BlockCopy(buff, 0, data, 1, length);
-            UnReliableSend(data, data.Length);
+            UnReliableSend(data, length + 1);
+            MemoryPool.Free(data);
         }
         protected virtual void UnReliableSend(byte[] data, int length)
         {
