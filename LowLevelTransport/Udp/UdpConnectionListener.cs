@@ -90,7 +90,7 @@ namespace LowLevelTransport.Udp
         {
             while(true)
             {
-                if(!server.Poll(-1, SelectMode.SelectRead))
+                if(!server.Poll(1000000, SelectMode.SelectRead))
                 {
                     continue;
                 }
