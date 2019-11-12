@@ -50,6 +50,7 @@ namespace LowLevelTransport.Udp
         }
         public Task<bool> ConnectAsync(int timeout = (int)ConnectOption.Timeout)
         {
+			Log.Info("try connect a server");
             lock (stateLock)
             {
                 if(State != ConnectionState.NotConnected)
@@ -168,7 +169,7 @@ namespace LowLevelTransport.Udp
                     {
                         HandleHeartbeat();
                     }
-                    if(length == 6 && dataBuffer[1] == (byte)UdpSendOption.CreateConnectionResponse)
+                	else if(length == 6 && dataBuffer[1] == (byte)UdpSendOption.CreateConnectionResponse)
                     {
                         Log.Info("FirstReceiveCallback");
                         uint convID_ = BitConverter.ToUInt32(dataBuffer, 2);
