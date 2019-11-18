@@ -30,12 +30,17 @@ namespace Server
                     {
                         foreach(var newconn in queue)
                         {
-                            byte[] data = newconn.Receive();
-                            if(data != null)
+                            try
+                            {
+                                byte[] data = newconn.Receive();
                                 Console.WriteLine(data.Length);
+                            }
+                            catch(Exception e)
+                            {
+
+                            }
                             //Console.WriteLine(Encoding.UTF8.GetString(data));
                         }
-                        
                     }
                 });
             }
