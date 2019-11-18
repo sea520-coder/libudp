@@ -541,7 +541,6 @@ namespace LowLevelTransport.Udp
                             seg.una = tmp_una;
                             seg.len = tmp_length;
                             Buffer.BlockCopy(data, offset, seg.data, 0, (int)tmp_length);
-                            Log.Info("sn={0}:len={1}", seg.sn, seg.len);
                             ParseData(seg);
                         }
                     }
