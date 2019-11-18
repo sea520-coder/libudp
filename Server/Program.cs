@@ -14,7 +14,7 @@ namespace Server
         static Queue<Connection> queue = new Queue<Connection>();
         static UdpConnectionListener listener;
         static CancellationTokenSource source = new CancellationTokenSource();
-        static string host = "192.168.237.128";
+        static string host = "192.168.237.130";
         //static string host = "172.26.187.156";
 
         static async void AcceptLoop()
