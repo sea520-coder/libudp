@@ -99,7 +99,6 @@ namespace LowLevelTransport.Udp
             internal uint rto = 0;
             internal uint fastack = 0;
             internal uint xmit = 0;
-            internal int acked = 0;
             internal uint len = 0;
             internal byte[] data;
 
@@ -162,7 +161,6 @@ namespace LowLevelTransport.Udp
                 xmit = 0;
                 resendts = 0;
                 fastack = 0;
-                acked = 0;
                 len = 0;
                 data = null;
             }
@@ -205,7 +203,7 @@ namespace LowLevelTransport.Udp
 
         List<Segment> sendQueue = new List<Segment>(16);
         List<Segment> receiveQueue = new List<Segment>(16);
-        List<Segment> sendBuffer = new List<Segment>(16); //存着远端已确认的数据acked=1等下次input删除，和未确认的数据， 要发送的数据
+        List<Segment> sendBuffer = new List<Segment>(16); //未确认的数据， 要发送的数据
         List<Segment> receiveBuffer = new List<Segment>(16);
         List<ackItem> ackList = new List<ackItem>(16);
 
@@ -375,12 +373,14 @@ namespace LowLevelTransport.Udp
         {
             if (_itimediff(sn, sendUna) < 0 || _itimediff(sn, sendNextNumber) >= 0)
                 return;
-            foreach(var seg in sendBuffer) //确认过期的包没有立即从sendBuffer移除，直到收到una包后删除
+            
+            for(var i = 0; i < sendBuffer.Count; i++)
             {
+                var seg = sendBuffer[i];
                 if(sn == seg.sn)
                 {
                     Segment.Put(seg);
-                    seg.acked = 1;
+                    sendBuffer.RemoveAt(i);
                     break;
                 }
                 if (_itimediff(sn, seg.sn) < 0)
@@ -541,6 +541,7 @@ namespace LowLevelTransport.Udp
                             seg.una = tmp_una;
                             seg.len = tmp_length;
                             Buffer.BlockCopy(data, offset, seg.data, 0, (int)tmp_length);
+                            Log.Info("sn={0}:rnn={1}:length={2}", seg.sn, receiveNextNumber, seg.len);
                             ParseData(seg);
                         }
                     }
@@ -741,10 +742,6 @@ namespace LowLevelTransport.Udp
             {
                 var segment = sendBuffer[k];
                 var needsend = false;
-                if(segment.acked == 1)
-                {
-                    continue;
-                }
                 if(segment.xmit == 0)
                 {
                     needsend = true;
