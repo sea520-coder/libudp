@@ -236,12 +236,10 @@ namespace LowLevelTransport
                         break;
                     }
 
-                    var n = arq.Receive(peekReceiveBuffer, size); //从arq中取数据
+                    var n = arq.Receive(peekReceiveBuffer, peekReceiveBuffer.Length); //从arq中取数据
                     if(n > 0) //数据包
                     {
-
                         NoReliableReceive(peekReceiveBuffer, 0, n);
-
                     }
                     else //确认包 or 错误包 or 部分包
                     {

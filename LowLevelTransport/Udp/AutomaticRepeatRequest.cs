@@ -99,7 +99,6 @@ namespace LowLevelTransport.Udp
             internal uint rto = 0;
             internal uint fastack = 0;
             internal uint xmit = 0;
-            internal uint len = 0;
             internal byte[] data;
 
             internal int encode(byte[] ptr, int offset)
@@ -112,57 +111,17 @@ namespace LowLevelTransport.Udp
                 offset += encode32u(ptr, offset, ts);
                 offset += encode32u(ptr, offset, sn);
                 offset += encode32u(ptr, offset, una);
-                offset += encode32u(ptr, offset, len);
+                offset += encode32u(ptr, offset, (uint)data.Length);
                 
                 return offset - prev;
             }
-            private static Stack<Segment> msSegmentPool = new Stack<Segment>(256);
-            public static Segment Get(int size)
-            {
-                if(msSegmentPool.Count > 0)
-                {
-                    var seg = msSegmentPool.Pop();
-                    seg.data = new byte[size];
-                    if(seg.data == null)
-                    {
-                        Log.Error("segmentPool data is null");
-                    }
-                    return seg;
-                }
-                return new Segment(size);
-            }
-            public Segment()
-            {
-                reset();
-            }
-            public static void Put(Segment seg)
-            {
-                seg.reset();
-                msSegmentPool.Push(seg);
-            }
-            private Segment(int size)
+            internal Segment(int size)
             {
                 data = new byte[size];
                 if(data == null)
                 {
                     Log.Error("Segment data is null");
                 }
-            }
-            internal void reset()
-            {
-                conv = 0;
-                cmd = 0;
-                frg = 0;
-                wnd = 0;
-                ts = 0;
-                sn = 0;
-                una = 0;
-                rto = 0;
-                xmit = 0;
-                resendts = 0;
-                fastack = 0;
-                len = 0;
-                data = null;
             }
         }
         internal class ackItem
@@ -236,7 +195,8 @@ namespace LowLevelTransport.Udp
                 return -1;
             var seg = receiveQueue[0];
             if (seg.frg == 0)
-                return (int)seg.len;
+                return seg.data.Length;
+
             if (receiveQueue.Count < seg.frg + 1)
             {
                 return -2;
@@ -245,7 +205,7 @@ namespace LowLevelTransport.Udp
             int length = 0;
             foreach(var item in receiveQueue)
             {
-                length += (int)item.len;
+                length += item.data.Length;
                 if (0 == item.frg)
                     break;
             }
@@ -259,8 +219,10 @@ namespace LowLevelTransport.Udp
             if (peekSize < 0)
                 return -2;
             if (peekSize > size)
+            {
+                Log.Error("receive a big data {0}", peekSize);
                 return -3;
-
+            }
             var fastRecover = false;
             if (receiveQueue.Count >= receiveWindow)
                 fastRecover = true;
@@ -270,10 +232,10 @@ namespace LowLevelTransport.Udp
             foreach(var seg in receiveQueue)
             {
                 uint frg = seg.frg;
-                Buffer.BlockCopy(seg.data, 0, buffer, length, (int)seg.len);
-                length += (int)seg.len;
+                Buffer.BlockCopy(seg.data, 0, buffer, length, seg.data.Length);
+                Log.Info("receive blockcopy {0} {1}", seg.data.Length, length);
+                length += seg.data.Length;
                 count++;
-                Segment.Put(seg);
                 if (0 == frg)
                     break;
             }
@@ -333,12 +295,11 @@ namespace LowLevelTransport.Udp
             for(var i = 0; i < count; i++)
             {
                 var size = Math.Min(data.Length - readIndex, (int)mss);
-                var seg = Segment.Get(size);
+                var seg = new Segment(size);
                 Buffer.BlockCopy(data, readIndex, seg.data, 0, size);
                 readIndex += size;
-                seg.len = (uint)size;
                 seg.frg = (byte)(count - i - 1);
-                sendQueue.Add(seg);
+                sendQueue.Add(seg); //增
             }
             return readIndex;
         }
@@ -379,8 +340,7 @@ namespace LowLevelTransport.Udp
                 var seg = sendBuffer[i];
                 if(sn == seg.sn)
                 {
-                    Segment.Put(seg);
-                    sendBuffer.RemoveAt(i);
+                    sendBuffer.RemoveAt(i); //删
                     break;
                 }
                 if (_itimediff(sn, seg.sn) < 0)
@@ -399,7 +359,7 @@ namespace LowLevelTransport.Udp
             }
             if(count > 0)
             {
-                sendBuffer.RemoveRange(0, count); //只有此处删除
+                sendBuffer.RemoveRange(0, count); //删除
             }
         }
         void ParseFastAck(uint sn, uint ts)
@@ -531,7 +491,7 @@ namespace LowLevelTransport.Udp
                         AckPush(tmp_sn, tmp_ts);
                         if (_itimediff(tmp_sn, receiveNextNumber) >= 0)
                         {
-                            var seg = Segment.Get((int)tmp_length);
+                            var seg = new Segment((int)tmp_length);
                             seg.conv = tmp_conv;
                             seg.cmd = (uint)tmp_cmd;
                             seg.frg = (uint)tmp_frg;
@@ -539,9 +499,8 @@ namespace LowLevelTransport.Udp
                             seg.ts = tmp_ts;
                             seg.sn = tmp_sn;
                             seg.una = tmp_una;
-                            seg.len = tmp_length;
-                            Buffer.BlockCopy(data, offset, seg.data, 0, (int)tmp_length);
-                            Log.Info("sn={0}:rnn={1}:length={2}", seg.sn, receiveNextNumber, seg.len);
+                            Buffer.BlockCopy(data, offset, seg.data, 0, seg.data.Length);
+                            Log.Info("sn={0}:rnn={1}:length={2}", seg.sn, receiveNextNumber, seg.data.Length);
                             ParseData(seg);
                         }
                     }
@@ -611,7 +570,7 @@ namespace LowLevelTransport.Udp
         }
         void Flush(bool ackOnly)
         {
-            var seg = new Segment();
+            var seg = new Segment(0);
             seg.conv = conv;
             seg.cmd = CMD_ACK;
             seg.wnd = (uint)( WindowUnUsed() );
@@ -720,12 +679,12 @@ namespace LowLevelTransport.Udp
                 newseg.rto = rx_rto;
                 newseg.fastack = 0;
                 newseg.xmit = 0;
-                sendBuffer.Add(newseg);
+                sendBuffer.Add(newseg); //增
                 newSegsCount++;
             }
             if(newSegsCount > 0)
             {
-                sendQueue.RemoveRange(0, newSegsCount);
+                sendQueue.RemoveRange(0, newSegsCount); //删
             }
 
             var resent = (fastresend > 0) ? (uint)fastresend : 0xffffffff;
@@ -788,13 +747,13 @@ namespace LowLevelTransport.Udp
                     segment.wnd = seg.wnd;
                     segment.una = seg.una;
 
-                    var need = OVERHEAD + segment.len;
+                    var need = OVERHEAD + segment.data.Length;
                     makeSpace((int)need);
                     writeIndex += segment.encode(buffer, writeIndex);
-                    if(segment.len > 0)
+                    if(segment.data.Length > 0)
                     {
-                        Buffer.BlockCopy(segment.data, 0, buffer, writeIndex, (int)segment.len);
-                        writeIndex += (int)segment.len;
+                        Buffer.BlockCopy(segment.data, 0, buffer, writeIndex, segment.data.Length);
+                        writeIndex += segment.data.Length;
                     }
                     if(segment.xmit >= dead_link)
                     {

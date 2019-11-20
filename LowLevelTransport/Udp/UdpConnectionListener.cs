@@ -117,7 +117,7 @@ namespace LowLevelTransport.Udp
                     continue;
                 }
 
-                Log.Info("receive length={0}", length);
+                Log.Info("receive length={0} {1}", length, dataBuffer[0]);
                 UdpServerConnection connection;
                 uint convID_ = 0;
                 bool beforeExistConnection = false;

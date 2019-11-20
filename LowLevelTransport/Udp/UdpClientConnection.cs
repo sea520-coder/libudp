@@ -50,7 +50,7 @@ namespace LowLevelTransport.Udp
         }
         public Task<bool> ConnectAsync(int timeout = (int)ConnectOption.Timeout)
         {
-			Log.Info("try connect a server");
+            Log.Info("try connect a server");
             lock (stateLock)
             {
                 if(State != ConnectionState.NotConnected)
@@ -155,7 +155,8 @@ namespace LowLevelTransport.Udp
                     HandleDisconnect(new Exception("Received Zero Bytes in ReceiveFrom"));
                     continue;
                 }
-                Log.Info("receiveCallback {0}", length);
+                
+                Log.Info("receiveCallback {0} {1}", length, dataBuffer[0]);
                 //25 = ack packages length
 
                 byte option = dataBuffer[0];
@@ -169,7 +170,7 @@ namespace LowLevelTransport.Udp
                     {
                         HandleHeartbeat();
                     }
-                	else if(length == 6 && dataBuffer[1] == (byte)UdpSendOption.CreateConnectionResponse)
+                    else if(length == 6 && dataBuffer[1] == (byte)UdpSendOption.CreateConnectionResponse)
                     {
                         Log.Info("FirstReceiveCallback");
                         uint convID_ = BitConverter.ToUInt32(dataBuffer, 2);
