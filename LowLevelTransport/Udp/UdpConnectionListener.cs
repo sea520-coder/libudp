@@ -11,12 +11,13 @@ using System.Threading.Tasks.Dataflow;
 
 namespace LowLevelTransport.Udp
 {
-    public class UdpConnectionListener
+    public partial class UdpConnectionListener
     {
         private Socket server;
         private readonly EndPoint endPoint;
         private readonly byte[] dataBuffer = new byte[ushort.MaxValue];
         private Thread receiveThread;
+        private object end2conLock = new object();
         private readonly Dictionary<EndPoint, UdpServerConnection> endPoint2Connection = new Dictionary<EndPoint, UdpServerConnection>();
 #if DOTNET_CORE
         private readonly BufferBlock<Connection> newConnQueue = new BufferBlock<Connection>();
@@ -55,6 +56,7 @@ namespace LowLevelTransport.Udp
                 IsBackground = true
             };
             receiveThread.Start();
+            InitCheckTimeoutTimer();
         }
 #if DOTNET_CORE
         public async Task<Connection> AcceptAsync(CancellationToken token)
@@ -71,20 +73,38 @@ namespace LowLevelTransport.Udp
 #endif
         public void Close()
         {
+            StopCheckTimeoutTimer();
             receiveThread.Abort();
             server.Close();
         }
         internal void RemoveConnectionTo(EndPoint endPoint)
         {
-            endPoint2Connection.Remove(endPoint);
+            lock(end2conLock)
+            {
+                endPoint2Connection.Remove(endPoint);
+            }
         }
         internal void SendBytes(byte[] buff, EndPoint remoteEndPoint)
         {
-            server.SendTo(buff, 0, buff.Length, SocketFlags.None, remoteEndPoint);
+            try
+            {
+                server.SendTo(buff, 0, buff.Length, SocketFlags.None, remoteEndPoint);
+            }
+            catch(Exception e)
+            {
+                Log.Error($"[SocketSend|IP:{remoteEndPoint.ToString()}], Exception:{e}");
+            }
         }
         internal void SendBytes(byte[] buff, int length, EndPoint remoteEndPoint)
         {
-             server.SendTo(buff, 0, length, SocketFlags.None, remoteEndPoint);
+            try
+            {
+                server.SendTo(buff, 0, length, SocketFlags.None, remoteEndPoint);
+            }
+            catch(Exception e)
+            {
+                Log.Error($"[SocketSend|IP:{remoteEndPoint.ToString()}], Exception:{e}");
+            }
         }
         private void ReceiveMsg()
         {
@@ -117,11 +137,12 @@ namespace LowLevelTransport.Udp
                     continue;
                 }
 
-                Log.Info("receive length={0} {1}", length, dataBuffer[0]);
+                //Log.Info("receive length={0} {1}", length, dataBuffer[0]);
                 UdpServerConnection connection;
                 uint convID_ = 0;
                 bool beforeExistConnection = false;
-                if (endPoint2Connection.TryGetValue(point, out connection)) //已建立连接
+
+                if (GetConnection(point, out connection)) //已建立连接
                 {
                     beforeExistConnection = true;
                 }
@@ -160,6 +181,9 @@ namespace LowLevelTransport.Udp
                     }
                     else if(length == 2 && dataBuffer[1] == (byte)UdpSendOption.Heartbeat) //keepalive
                     {
+                        //记录当前时间
+                        connection.KeepAliveCurTimestamp = connection.UnixTimeStamp();
+
                         byte[] buff = new byte[1] {(byte)UdpSendOption.HeartbeatResponse};
                         connection.SendBytes(buff);
                     }
@@ -178,12 +202,25 @@ namespace LowLevelTransport.Udp
         {
             convID_ = GenerateConvID();
             connection = new UdpServerConnection(this, point, convID_);
-            endPoint2Connection.Add(point, connection);
+
+            lock(end2conLock)
+            {
+                endPoint2Connection.Add(point, connection);
+            }
 #if DOTNET_CORE
             newConnQueue.Post(connection);
 #else
             newConnQueue.Enqueue(connection);
 #endif
+        }
+        private bool GetConnection(EndPoint point, out UdpServerConnection connection)
+        {
+            bool ret = false;
+            lock(end2conLock)
+            {
+                ret = endPoint2Connection.TryGetValue(point, out connection);
+            }
+            return ret;
         }
     }
 }

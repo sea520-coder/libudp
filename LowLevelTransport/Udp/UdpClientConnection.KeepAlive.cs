@@ -10,20 +10,14 @@ namespace LowLevelTransport.Udp
         private bool init = false;
         private bool keepAliveTimerDisposed = false;
         private Timer keepAliveTimer;
-#if UNITY
-        protected static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        protected long UnixTimeStamp() => (long)(DateTime.UtcNow - UnixEpoch).TotalMilliseconds;
-#else
-        protected long UnixTimeStamp() => (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalMilliseconds;
-#endif
         protected void InitKeepAliveTimer()
         {
             init = true;
-            keepAliveTimer = new Timer(KeepAlive, null, (int)KeepAliveOption.KeepAliveInterval, (int)KeepAliveOption.KeepAliveInterval);
+            keepAliveTimer = new Timer(KeepAlive, null, (int)ClientKeepAliveOption.KeepAliveInterval, (int)ClientKeepAliveOption.KeepAliveInterval);
         }
         private void KeepAlive(object obj)
         {
-            if(Interlocked.Read(ref reconnectTimes) > (long)KeepAliveOption.ReconnectLimit)
+            if(Interlocked.Read(ref reconnectTimes) > (long)ClientKeepAliveOption.ReconnectLimit)
             {
                 HandleDisconnect(new Exception("Reconnect too many times"));
                 return;

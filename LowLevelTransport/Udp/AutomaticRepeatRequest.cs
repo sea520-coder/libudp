@@ -233,7 +233,7 @@ namespace LowLevelTransport.Udp
             {
                 uint frg = seg.frg;
                 Buffer.BlockCopy(seg.data, 0, buffer, length, seg.data.Length);
-                Log.Info("receive blockcopy {0} {1}", seg.data.Length, length);
+                //Log.Info("receive blockcopy {0} {1}", seg.data.Length, length);
                 length += seg.data.Length;
                 count++;
                 if (0 == frg)

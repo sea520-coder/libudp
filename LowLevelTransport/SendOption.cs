@@ -28,12 +28,16 @@ namespace LowLevelTransport
         Disconnecting = 3,
     }
 
-    public enum KeepAliveOption
+    public enum ClientKeepAliveOption
     {
-        ReconnectLimit = 10,
-        KeepAliveInterval = 60000, // milliseconds
+        ReconnectLimit = 5,
+        KeepAliveInterval = 10000, // milliseconds
     }
 
+    public enum ServerKeepAliveOption
+    {
+        CheckTimeoutInterval = 60000, //milliseconds
+    }
 
     public enum ARQOption
     {

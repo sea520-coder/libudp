@@ -48,9 +48,15 @@ namespace LowLevelTransport
 
         protected virtual int SendBufferSize() { throw new NotImplementedException(); }
         protected virtual int ReceiveBufferSize() { throw new NotImplementedException();  }
+#if UNITY
+        private static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        internal long UnixTimeStamp() => (long)(DateTime.UtcNow - UnixEpoch).TotalMilliseconds;
+#else
+        internal long UnixTimeStamp() => (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalMilliseconds;
+#endif
 #if DOTNET_CORE
         public byte[] Receive()
-        { 
+        {
             lock (recvQueue)
             {
                 if(isClosed)
@@ -60,6 +66,10 @@ namespace LowLevelTransport
                 byte[] p;
                 return recvQueue.Reader.TryRead(out p) ? p : null;
             }
+        }
+        public async Task<byte[]> ReceiveAsync(CancellationToken cToken)
+        {
+            return await recvQueue.Reader.ReadAsync(cToken);
         }
         public Task<byte[]> ReceiveAsync(CancellationToken cToken, TimeSpan t)
         {
@@ -162,14 +172,21 @@ namespace LowLevelTransport
         }
         public void SendBytes(byte[] buff, SendOption sendOption = SendOption.None)
         {
+            //Log.Info("buf send length {0}", buff.Length);
             if (State != ConnectionState.Connected)
             {
                 throw new LowLevelTransportException("Could not send data as this Connection is not connected");
             }
 
-            if (buff.Length > SendBufferSize() && (sendOption == SendOption.None))
+            if (buff.Length >= SendBufferSize() && (sendOption == SendOption.None))
             {
                 throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
+            }
+
+            if(buff.Length >= ushort.MaxValue && (sendOption == SendOption.FragmentedReliable))
+            {
+                Log.Error($"arq Send buff size:{buff.Length} too large");
+                throw new LowLevelTransportException($"arq Send buff size:{buff.Length} too large");
             }
 
             if (sendOption == SendOption.FragmentedReliable)

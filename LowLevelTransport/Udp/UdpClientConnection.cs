@@ -89,12 +89,12 @@ namespace LowLevelTransport.Udp
             }
             catch(ObjectDisposedException e)
             {
-                Log.Info($"UnReliableSend ObjectDisposedException: {e.Message}");
+                Log.Error($"UnReliableSend ObjectDisposedException: {e.Message}");
                 return;
             }
             catch(SocketException e)
             {
-                Log.Info($"UnReliableSend SocketException: {e.Message}");
+                Log.Error($"UnReliableSend SocketException: {e.Message}");
                 return;
             }
             catch (Exception e)
