@@ -225,7 +225,7 @@ namespace LowLevelTransport
             {
                 if(arq.WaitSend >= 2 * arq.SendWindow) //发送缓存积累
                 {
-                    Log.Error("ARQSend {0} {1}", arq.WaitSend, arq.SendWindow);
+                    Log.Error("Send fast {0} {1}", arq.WaitSend, arq.SendWindow);
                     return 0;
                     //是否断开此连接，避免内存耗尽;影响其它连接
                 }

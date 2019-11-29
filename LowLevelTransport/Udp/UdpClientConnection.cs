@@ -89,12 +89,12 @@ namespace LowLevelTransport.Udp
             }
             catch(ObjectDisposedException e)
             {
-                Log.Error($"UnReliableSend ObjectDisposedException: {e.Message}");
+                Log.Info($"UnReliableSend ObjectDisposedException: {e.Message}");
                 return;
             }
             catch(SocketException e)
             {
-                Log.Error($"UnReliableSend SocketException: {e.Message}");
+                Log.Info($"UnReliableSend SocketException: {e.Message}");
                 return;
             }
             catch (Exception e)
@@ -156,7 +156,7 @@ namespace LowLevelTransport.Udp
                     continue;
                 }
                 
-                Log.Info("receiveCallback {0} {1}", length, dataBuffer[0]);
+                //Log.Info("receiveCallback {0} {1}", length, dataBuffer[0]);
                 //25 = ack packages length
 
                 byte option = dataBuffer[0];
