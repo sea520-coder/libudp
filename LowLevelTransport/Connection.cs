@@ -14,14 +14,14 @@ namespace LowLevelTransport
     public class Connection
     {
 #if DOTNET_CORE
-        private readonly Channel<byte[]> recvQueue = Channel.CreateBounded<byte[]>(512);
+        private readonly Channel<byte[]> recvQueue = Channel.CreateBounded<byte[]>((int)ReceiveQueue.Size);
         public CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 #else
         private Queue<byte[]> recvQueue = new Queue<byte[]>();
 #endif
         protected EndPoint remoteEndPoint;
         private AutomaticRepeatRequest arq = null;
-        private byte[] peekReceiveBuffer = new byte[ushort.MaxValue];
+        private byte[] peekReceiveBuffer = new byte[MaxSize];
         private object arqLock = new object();
         private Timer tickTimer;
         private volatile bool isClosed;
@@ -54,6 +54,7 @@ namespace LowLevelTransport
 #else
         internal long UnixTimeStamp() => (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalMilliseconds;
 #endif
+        public static readonly int MaxSize = 1 << 20; //ushort.MaxValue
 #if DOTNET_CORE
         public byte[] Receive()
         {
@@ -99,7 +100,8 @@ namespace LowLevelTransport
 #if DOTNET_CORE
             if(!recvQueue.Writer.TryWrite(dst))
             {
-                throw new LowLevelTransportException("receive queue overload");
+                UInt16 msgType = length > 1 ? (UInt16)(( (UInt16)dst[1] << 8 ) | ( (UInt16)dst[0] )) : (UInt16)0;
+                throw new LowLevelTransportException($"receive queue overload & last type{msgType}");
             }
 #else
             lock (recvQueue)
@@ -120,7 +122,7 @@ namespace LowLevelTransport
 
                 Dispose();
                 StopTimer();
-            } 
+            }
         }
         protected void InvokeDisconnected(Exception e = null)
         {
@@ -183,10 +185,11 @@ namespace LowLevelTransport
                 throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
             }
 
-            if(buff.Length >= ushort.MaxValue && (sendOption == SendOption.FragmentedReliable))
+            if(buff.Length >= MaxSize && (sendOption == SendOption.FragmentedReliable))
             {
-                Log.Error($"arq Send buff size:{buff.Length} too large");
-                throw new LowLevelTransportException($"arq Send buff size:{buff.Length} too large");
+                UInt16 msgType = (UInt16)(( (UInt16)buff[1] << 8 ) | ( (UInt16)buff[0] ));
+                Log.Error($"arq type{msgType} Send buff size:{buff.Length} too large");
+                throw new LowLevelTransportException($"arq type{msgType} Send buff size:{buff.Length} too large");
             }
 
             if (sendOption == SendOption.FragmentedReliable)
@@ -225,7 +228,8 @@ namespace LowLevelTransport
             {
                 if(arq.WaitSend >= 2 * arq.SendWindow) //发送缓存积累
                 {
-                    Log.Error("Send fast {0} {1}", arq.WaitSend, arq.SendWindow);
+                    UInt16 msg = buff.Length > 1 ? (UInt16)(( (UInt16)buff[1] << 8 ) | ( (UInt16)buff[0] )) : (UInt16)0;
+                    Log.Error("Send fast {0} {1} type{2}", arq.WaitSend, arq.SendWindow, msg);
                     return 0;
                     //是否断开此连接，避免内存耗尽;影响其它连接
                 }
