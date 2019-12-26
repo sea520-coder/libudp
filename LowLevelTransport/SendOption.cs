@@ -70,6 +70,6 @@ namespace LowLevelTransport
 
     public enum ReceiveQueue
     {
-        Size = 512,
+        Size = 2048,
     }
 }

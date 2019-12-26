@@ -93,23 +93,6 @@ namespace LowLevelTransport
             }
         }
 #endif
-        internal void NoReliableReceive(byte[] data, int index, int length)
-        {
-            byte[] dst = new byte[length];
-            Buffer.BlockCopy(data, index, dst, 0, length);
-#if DOTNET_CORE
-            if(!recvQueue.Writer.TryWrite(dst))
-            {
-                UInt16 msgType = length > 1 ? (UInt16)(( (UInt16)dst[1] << 8 ) | ( (UInt16)dst[0] )) : (UInt16)0;
-                throw new LowLevelTransportException($"receive queue overload & last type{msgType}");
-            }
-#else
-            lock (recvQueue)
-            {
-                recvQueue.Enqueue(dst);
-            }
-#endif
-        }
         public void Close()
         {
             lock (recvQueue)
@@ -124,6 +107,58 @@ namespace LowLevelTransport
                 StopTimer();
             }
         }
+        public void SendBytes(byte[] buff, SendOption sendOption = SendOption.None)
+        {
+            //Log.Info("buf send length {0}", buff.Length);
+            if (State != ConnectionState.Connected)
+            {
+                throw new LowLevelTransportException("Could not send data as this Connection is not connected");
+            }
+
+            if (buff.Length >= SendBufferSize() && (sendOption == SendOption.None))
+            {
+                throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
+            }
+
+            if(buff.Length >= MaxSize && (sendOption == SendOption.FragmentedReliable))
+            {
+                UInt16 msgType = (UInt16)(( (UInt16)buff[1] << 8 ) | ( (UInt16)buff[0] ));
+                Log.Error($"arq type{msgType} Send buff size:{buff.Length} too large");
+                throw new LowLevelTransportException($"arq type{msgType} Send buff size:{buff.Length} too large");
+            }
+
+            if (sendOption == SendOption.FragmentedReliable)
+            {
+                ARQSend(buff);
+            }
+            else
+            {
+                EncapUnReliableSend(buff, buff.Length);
+            }
+        }
+        public void Tick()
+        {
+        }
+        public void Flush()
+        {
+        }
+        internal void NoReliableReceive(byte[] data, int index, int length)
+        {
+            byte[] dst = new byte[length];
+            Buffer.BlockCopy(data, index, dst, 0, length);
+#if DOTNET_CORE
+            if(!recvQueue.Writer.TryWrite(dst))
+            {
+                UInt16 msgType = length > 1 ? (UInt16)(( (UInt16)dst[1] << 8 ) | ( (UInt16)dst[0] )) : (UInt16)0;
+                Log.Error($"receive queue overload & last type{msgType}");
+            }
+#else
+            lock (recvQueue)
+            {
+                recvQueue.Enqueue(dst);
+            }
+#endif
+        }
         protected void InvokeDisconnected(Exception e = null)
         {
             Log.Error("Disconnect IP:{0} Exception:{1}", remoteEndPoint.ToString(), e?.Message);
@@ -132,14 +167,6 @@ namespace LowLevelTransport
         protected virtual void Dispose()
         {
             throw new NotImplementedException();
-        }
-        public void Tick()
-        {
-
-        }
-        public void Flush()
-        {
-
         }
         private void StartTick()
         {
@@ -172,35 +199,6 @@ namespace LowLevelTransport
                 return arq.Interval();
             }
         }
-        public void SendBytes(byte[] buff, SendOption sendOption = SendOption.None)
-        {
-            //Log.Info("buf send length {0}", buff.Length);
-            if (State != ConnectionState.Connected)
-            {
-                throw new LowLevelTransportException("Could not send data as this Connection is not connected");
-            }
-
-            if (buff.Length >= SendBufferSize() && (sendOption == SendOption.None))
-            {
-                throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
-            }
-
-            if(buff.Length >= MaxSize && (sendOption == SendOption.FragmentedReliable))
-            {
-                UInt16 msgType = (UInt16)(( (UInt16)buff[1] << 8 ) | ( (UInt16)buff[0] ));
-                Log.Error($"arq type{msgType} Send buff size:{buff.Length} too large");
-                throw new LowLevelTransportException($"arq type{msgType} Send buff size:{buff.Length} too large");
-            }
-
-            if (sendOption == SendOption.FragmentedReliable)
-            {
-                ARQSend(buff);
-            }
-            else
-            {
-                EncapUnReliableSend(buff, buff.Length);
-            }
-        }
         protected void EncapUnReliableSend(byte[] buff, int length)
         {
             byte[] data = MemoryPool.Malloc(length + 1);
@@ -226,10 +224,10 @@ namespace LowLevelTransport
             int n = 0;
             lock (arqLock)
             {
-                if(arq.WaitSend >= 2 * arq.SendWindow) //发送缓存积累
+                if(arq.WaitSend >= 8 * arq.SendWindow)
                 {
                     UInt16 msg = buff.Length > 1 ? (UInt16)(( (UInt16)buff[1] << 8 ) | ( (UInt16)buff[0] )) : (UInt16)0;
-                    Log.Error("Send fast {0} {1} type{2}", arq.WaitSend, arq.SendWindow, msg);
+                    Log.Error("Send fast {0} {1} MsgType{2}", arq.WaitSend, arq.SendWindow, msg);
                     return 0;
                     //是否断开此连接，避免内存耗尽;影响其它连接
                 }
@@ -243,7 +241,7 @@ namespace LowLevelTransport
             int ret = -1;
             lock (arqLock)
             {
-                ret = arq.Input(data, index, length, true); //扔数据给arq
+                ret = arq.Input(data, index, length, true);
                 if(ret < 0)
                 {
                     return ret;
@@ -257,7 +255,7 @@ namespace LowLevelTransport
                         break;
                     }
 
-                    var n = arq.Receive(peekReceiveBuffer, peekReceiveBuffer.Length); //从arq中取数据
+                    var n = arq.Receive(peekReceiveBuffer, peekReceiveBuffer.Length);
                     if(n > 0) //数据包
                     {
                         NoReliableReceive(peekReceiveBuffer, 0, n);
