@@ -43,7 +43,7 @@ namespace LowLevelTransport
     {
         SendWindow = 256, //(包)
         RecieveWindow = 256, //(包)
-        MTU = 1500, //
+        MTU = 4048, //
         Interval = 40, //发送间隔，越小发的越快
         Resend = 0, //0 close; 2 2次ACK跨越将会直接重传
         NC = 0, // 0 open; 1 close 是否关闭流控
