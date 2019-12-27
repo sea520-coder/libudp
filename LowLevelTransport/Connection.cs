@@ -54,7 +54,36 @@ namespace LowLevelTransport
 #else
         internal long UnixTimeStamp() => (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalMilliseconds;
 #endif
-        public static readonly int MaxSize = 1 << 20; //ushort.MaxValue
+        private static readonly int MaxSize = 1 << 20; //ushort.MaxValue
+        public void SendBytes(byte[] buff, SendOption sendOption = SendOption.None)
+        {
+            //Log.Info("buf send length {0}", buff.Length);
+            if (State != ConnectionState.Connected)
+            {
+                throw new LowLevelTransportException("Could not send data as this Connection is not connected");
+            }
+
+            if (buff.Length >= SendBufferSize() && (sendOption == SendOption.None))
+            {
+                throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
+            }
+
+            if(buff.Length >= MaxSize && (sendOption == SendOption.FragmentedReliable))
+            {
+                UInt16 msgType = (UInt16)(( (UInt16)buff[1] << 8 ) | ( (UInt16)buff[0] ));
+                Log.Error($"arq type{msgType} Send buff size:{buff.Length} too large");
+                throw new LowLevelTransportException($"arq type{msgType} Send buff size:{buff.Length} too large");
+            }
+
+            if (sendOption == SendOption.FragmentedReliable)
+            {
+                ARQSend(buff);
+            }
+            else
+            {
+                EncapUnReliableSend(buff, buff.Length);
+            }
+        }
 #if DOTNET_CORE
         public byte[] Receive()
         {
@@ -105,35 +134,6 @@ namespace LowLevelTransport
 
                 Dispose();
                 StopTimer();
-            }
-        }
-        public void SendBytes(byte[] buff, SendOption sendOption = SendOption.None)
-        {
-            //Log.Info("buf send length {0}", buff.Length);
-            if (State != ConnectionState.Connected)
-            {
-                throw new LowLevelTransportException("Could not send data as this Connection is not connected");
-            }
-
-            if (buff.Length >= SendBufferSize() && (sendOption == SendOption.None))
-            {
-                throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
-            }
-
-            if(buff.Length >= MaxSize && (sendOption == SendOption.FragmentedReliable))
-            {
-                UInt16 msgType = (UInt16)(( (UInt16)buff[1] << 8 ) | ( (UInt16)buff[0] ));
-                Log.Error($"arq type{msgType} Send buff size:{buff.Length} too large");
-                throw new LowLevelTransportException($"arq type{msgType} Send buff size:{buff.Length} too large");
-            }
-
-            if (sendOption == SendOption.FragmentedReliable)
-            {
-                ARQSend(buff);
-            }
-            else
-            {
-                EncapUnReliableSend(buff, buff.Length);
             }
         }
         public void Tick()
