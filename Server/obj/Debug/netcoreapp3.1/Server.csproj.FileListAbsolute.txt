@@ -1,0 +1,11 @@
+/root/libudp/Server/bin/Debug/netcoreapp3.1/Server
+/root/libudp/Server/bin/Debug/netcoreapp3.1/Server.deps.json
+/root/libudp/Server/bin/Debug/netcoreapp3.1/Server.runtimeconfig.json
+/root/libudp/Server/bin/Debug/netcoreapp3.1/Server.runtimeconfig.dev.json
+/root/libudp/Server/bin/Debug/netcoreapp3.1/Server.dll
+/root/libudp/Server/bin/Debug/netcoreapp3.1/Server.pdb
+/root/libudp/Server/obj/Debug/netcoreapp3.1/Server.csprojAssemblyReference.cache
+/root/libudp/Server/obj/Debug/netcoreapp3.1/Server.AssemblyInfoInputs.cache
+/root/libudp/Server/obj/Debug/netcoreapp3.1/Server.AssemblyInfo.cs
+/root/libudp/Server/obj/Debug/netcoreapp3.1/Server.dll
+/root/libudp/Server/obj/Debug/netcoreapp3.1/Server.pdb

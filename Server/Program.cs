@@ -33,11 +33,13 @@ namespace Server
                             try
                             {
                                 byte[] data = newconn.Receive();
-                                Console.WriteLine(data.Length);
+                                byte[] buff = new byte[800 * 1000];
+                                Buffer.BlockCopy(data, 0, buff, 0, data.Length);
+                                newconn.SendBytes(buff, SendOption.FragmentedReliable);
                             }
-                            catch(Exception e)
+                            catch(Exception)
                             {
-
+                                
                             }
                             //Console.WriteLine(Encoding.UTF8.GetString(data));
                         }

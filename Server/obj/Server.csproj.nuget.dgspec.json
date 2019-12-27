@@ -1,34 +1,29 @@
 {
   "format": 1,
   "restore": {
-    "D:\\libudp\\Server\\Server.csproj": {}
+    "/root/libudp/Server/Server.csproj": {}
   },
   "projects": {
-    "D:\\libudp\\Server\\Server.csproj": {
+    "/root/libudp/Server/Server.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\libudp\\Server\\Server.csproj",
+        "projectUniqueName": "/root/libudp/Server/Server.csproj",
         "projectName": "Server",
-        "projectPath": "D:\\libudp\\Server\\Server.csproj",
-        "packagesPath": "C:\\Users\\1\\.nuget\\packages\\",
-        "outputPath": "D:\\libudp\\Server\\obj\\",
+        "projectPath": "/root/libudp/Server/Server.csproj",
+        "packagesPath": "/root/.nuget/packages/",
+        "outputPath": "/root/libudp/Server/obj/",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
-        ],
         "configFilePaths": [
-          "C:\\Users\\1\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "/root/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
-          "netcoreapp2.2"
+          "netcoreapp3.1"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "netcoreapp2.2": {
+          "netcoreapp3.1": {
             "projectReferences": {}
           }
         },
@@ -39,20 +34,23 @@
         }
       },
       "frameworks": {
-        "netcoreapp2.2": {
-          "dependencies": {
-            "Microsoft.NETCore.App": {
-              "suppressParent": "All",
-              "target": "Package",
-              "version": "[2.2.0, )",
-              "autoReferenced": true
-            }
-          },
+        "netcoreapp3.1": {
           "imports": [
-            "net461"
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48"
           ],
           "assetTargetFallback": true,
-          "warn": true
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/3.1.100/RuntimeIdentifierGraph.json"
         }
       }
     }

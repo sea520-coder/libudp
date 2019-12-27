@@ -12,7 +12,8 @@
             "program": "${workspaceFolder}/bin/Debug/netcoreapp3.1/Server.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
-            "externalConsole": true,
+            "console": "internalConsole",
+         //   "externalConsole": true,
             "stopAtEntry": false
         },
         {
