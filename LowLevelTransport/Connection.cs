@@ -14,7 +14,7 @@ namespace LowLevelTransport
     public class Connection
     {
 #if DOTNET_CORE
-        private readonly Channel<byte[]> recvQueue = Channel.CreateBounded<byte[]>((int)ReceiveQueue.Size);
+        private readonly Channel<byte[]> recvQueue = Channel.CreateUnbounded<byte[]>();
         public CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 #else
         private Queue<byte[]> recvQueue = new Queue<byte[]>();
@@ -54,36 +54,7 @@ namespace LowLevelTransport
 #else
         internal long UnixTimeStamp() => (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalMilliseconds;
 #endif
-        private static readonly int MaxSize = 1 << 20; //ushort.MaxValue
-        public void SendBytes(byte[] buff, SendOption sendOption = SendOption.None)
-        {
-            //Log.Info("buf send length {0}", buff.Length);
-            if (State != ConnectionState.Connected)
-            {
-                throw new LowLevelTransportException("Could not send data as this Connection is not connected");
-            }
-
-            if (buff.Length >= SendBufferSize() && (sendOption == SendOption.None))
-            {
-                throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
-            }
-
-            if(buff.Length >= MaxSize && (sendOption == SendOption.FragmentedReliable))
-            {
-                UInt16 msgType = (UInt16)(( (UInt16)buff[1] << 8 ) | ( (UInt16)buff[0] ));
-                Log.Error($"arq type{msgType} Send buff size:{buff.Length} too large");
-                throw new LowLevelTransportException($"arq type{msgType} Send buff size:{buff.Length} too large");
-            }
-
-            if (sendOption == SendOption.FragmentedReliable)
-            {
-                ARQSend(buff);
-            }
-            else
-            {
-                EncapUnReliableSend(buff, buff.Length);
-            }
-        }
+        public static readonly int MaxSize = 1 << 20; //ushort.MaxValue
 #if DOTNET_CORE
         public byte[] Receive()
         {
@@ -136,6 +107,35 @@ namespace LowLevelTransport
                 StopTimer();
             }
         }
+        public void SendBytes(byte[] buff, SendOption sendOption = SendOption.None)
+        {
+            //Console.WriteLine("buf send length {0}", buff.Length);
+            if (State != ConnectionState.Connected)
+            {
+                throw new LowLevelTransportException("Could not send data as this Connection is not connected");
+            }
+
+            if (buff.Length >= SendBufferSize() && (sendOption == SendOption.None))
+            {
+                throw new LowLevelTransportException($"Send byte size:{buff.Length} too large");
+            }
+
+            if(buff.Length >= MaxSize && (sendOption == SendOption.FragmentedReliable))
+            {
+                UInt16 msgType = (UInt16)(( (UInt16)buff[1] << 8 ) | ( (UInt16)buff[0] ));
+                Log.Error($"arq type{msgType} Send buff size:{buff.Length} too large");
+                throw new LowLevelTransportException($"arq type{msgType} Send buff size:{buff.Length} too large");
+            }
+
+            if (sendOption == SendOption.FragmentedReliable)
+            {
+                ARQSend(buff);
+            }
+            else
+            {
+                EncapUnReliableSend(buff, buff.Length);
+            }
+        }
         public void Tick()
         {
         }
@@ -178,9 +178,9 @@ namespace LowLevelTransport
             lock (arqLock)
             {
                 arq = new AutomaticRepeatRequest(convID_, EncapReliableSend);
-                arq.WindowSize((int)ARQOption.SendWindow, (int)ARQOption.RecieveWindow); 
+                arq.WindowSize((int)ARQOption.SendWindow, (int)ARQOption.RecieveWindow);
                 arq.NoDelay((int)ARQOption.NoDelay, (int)ARQOption.Interval, (int)ARQOption.Resend, (int)ARQOption.NC);
-                arq.SetMTU((int)ARQOption.MTU); 
+                arq.SetMTU((int)ARQOption.MTU);
             }
             StartTick();
         }
@@ -224,6 +224,7 @@ namespace LowLevelTransport
             int n = 0;
             lock (arqLock)
             {
+                /*
                 if(arq.WaitSend >= 8 * arq.SendWindow)
                 {
                     UInt16 msg = buff.Length > 1 ? (UInt16)(( (UInt16)buff[1] << 8 ) | ( (UInt16)buff[0] )) : (UInt16)0;
@@ -231,7 +232,7 @@ namespace LowLevelTransport
                     return 0;
                     //是否断开此连接，避免内存耗尽;影响其它连接
                 }
-
+                */
                 n = arq.Send(buff);
             }
             return n;
